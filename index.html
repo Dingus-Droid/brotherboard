@@ -1,0 +1,1544 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RSVP4Dingus</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="RSVP4Dingus">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --overlay: rgba(0,0,0,.55);
+
+      /* === UNIFORM CONTROL SYSTEM === */
+      --ctrl-h: 44px;
+      --ctrl-fs: 14px;
+      --ctrl-b: 2px;
+      --ctrl-r: 10px;
+      --ctrl-px: 14px;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    /* Native selection: invert based on theme */
+    textarea::selection { background: var(--fg); color: var(--bg); }
+    textarea::-moz-selection { background: var(--fg); color: var(--bg); }
+
+    /* ===== GRID: 20% / 30% / 50% ===== */
+    .app {
+      height: 100%;
+      width: 100%;
+      display: grid;
+      grid-template-rows: 20fr 30fr 50fr;
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    .section {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== INPUT (textarea + buttons below) ===== */
+    .input-wrap {
+      width: 90%;
+      height: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ta-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      resize: none;
+      padding: 10px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--fg);
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      outline: none;
+    }
+
+    textarea::placeholder { color: transparent; }
+
+    .placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      user-select: none;
+      font-size: 14px;
+      color: var(--fg);
+      opacity: 0.55;
+      padding: 12px;
+      text-align: center;
+    }
+    .placeholder.hidden { display: none; }
+
+    .input-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    /* ===== WORD DISPLAY ===== */
+    .stage {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .word {
+      white-space: nowrap;
+      font-weight: 600;
+      line-height: 1;
+      will-change: transform, font-size;
+      color: var(--fg);
+    }
+
+    /* ===== BOTTOM SECTION LAYOUT ===== */
+    .bottom {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .line {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .center-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .center-label {
+      font-size: 14px;
+      font-weight: 650;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-line {
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      padding: 0 14px;
+    }
+
+    /* ===== UNIFORM BUTTONS ===== */
+    button {
+      height: var(--ctrl-h);
+      padding: 0 var(--ctrl-px);
+      font-size: var(--ctrl-fs);
+      cursor: pointer;
+      background: var(--bg);
+      color: var(--fg);
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      user-select: none;
+    }
+    button:active { transform: translateY(1px); }
+
+    /* Toggle highlight for Word Select button */
+    .toggle-on {
+      background: var(--fg);
+      color: var(--bg);
+    }
+
+    /* Make arrow buttons match the same square footprint */
+    #left, #right {
+      width: var(--ctrl-h);
+      padding: 0;
+      font-size: var(--ctrl-fs);
+      font-weight: 700;
+    }
+
+    /* Make center value look like a control (same size class) */
+    #centerVal {
+      height: var(--ctrl-h);
+      min-width: 84px;
+      padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      background: var(--bg);
+      color: var(--fg);
+      font-size: var(--ctrl-fs);
+      line-height: 1;
+    }
+
+    /* ===== SETTINGS AS CENTERED BLOCKS ===== */
+    .settings {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .blocks-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      align-items: flex-start;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 190px;
+    }
+
+    .block-title {
+      font-size: 15px;
+      font-weight: 650;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Keep +/- readable but not “bigger vibe” than other buttons */
+    .stepper button {
+      width: var(--ctrl-h);
+      padding: 0;
+      font-size: var(--ctrl-fs);
+      font-weight: 800;
+    }
+
+    input[type="number"] {
+      width: 104px;
+      height: var(--ctrl-h);
+      padding: 0 10px;
+      font-size: var(--ctrl-fs);
+      background: var(--bg);
+      color: var(--fg);
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      outline: none;
+      line-height: 1;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+
+    /* ===== COLOR PICKERS ===== */
+    input[type="color"] {
+      width: var(--ctrl-h);
+      height: var(--ctrl-h);
+      padding: 0;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      background: var(--bg);
+      cursor: pointer;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch {
+      border: 0;
+      border-radius: calc(var(--ctrl-r) - 2px);
+    }
+    input[type="color"]::-moz-color-swatch {
+      border: 0;
+      border-radius: calc(var(--ctrl-r) - 2px);
+    }
+
+    .color-note {
+      font-size: 12px;
+      min-height: 16px;
+      opacity: 0.85;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* ===== MODAL (app-like) ===== */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .modal-card {
+      width: min(980px, 94vw);
+      max-height: min(80vh, 780px);
+      background: var(--bg);
+      color: var(--fg);
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,.25);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 12px 14px;
+      border-bottom: var(--ctrl-b) solid var(--fg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .modal-header h2 {
+      font-size: 15px;
+      font-weight: 650;
+    }
+
+    .modal-body {
+      padding: 12px 14px;
+      overflow: auto;
+    }
+
+    .modal-controls {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .hint {
+      opacity: 0.75;
+      font-size: 12px;
+      line-height: 1.3;
+      text-align: right;
+      max-width: 62%;
+    }
+
+    .diag {
+      margin: 8px 0 12px;
+      padding: 10px 12px;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: 12px;
+      font-size: 12px;
+      opacity: 0.92;
+      overflow-wrap: anywhere;
+    }
+
+    .hy-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .hy-row {
+      display: grid;
+      grid-template-columns: 26px 1.1fr 18px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: 12px;
+    }
+
+    .hy-row code {
+      border: var(--ctrl-b) solid var(--fg);
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+      display: block;
+    }
+
+    .hy-row input[type="text"] {
+      width: 100%;
+      height: var(--ctrl-h);
+      padding: 0 10px;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      font-size: 12px;
+      background: var(--bg);
+      color: var(--fg);
+      outline: none;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: var(--ctrl-b) solid var(--fg);
+      vertical-align: middle;
+    }
+
+    .modal-footer {
+      padding: 12px 14px;
+      border-top: var(--ctrl-b) solid var(--fg);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .smallbtn { padding: 0 var(--ctrl-px); }
+    input[type="checkbox"] { accent-color: var(--fg); }
+
+    /* ===== INFO ICONS (circled ! with popover) ===== */
+    .info {
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 13px;
+      line-height: 1;
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .info-tip {
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 10px);
+      transform: translateX(-50%);
+      min-width: 220px;
+      max-width: 320px;
+      padding: 10px 12px;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--fg);
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      box-shadow: 0 10px 28px rgba(0,0,0,.18);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .info-tip::before {
+      content: "";
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 12px;
+      height: 12px;
+      background: var(--bg);
+      border-left: var(--ctrl-b) solid var(--fg);
+      border-top: var(--ctrl-b) solid var(--fg);
+    }
+
+    .info.open .info-tip {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    /* ===== NESTED INFO BADGE (split on border line) ===== */
+    .btnwrap { position: relative; display: inline-flex; }
+    /* place badge on the top border line of the wrapped control (half out / half in) */
+    .btnwrap .info {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translate(-50%, -50%);
+      z-index: 6;
+    }
+
+    /* Titles with labels above controls: keep label text where it is, move only the badge */
+    .center-label, .block-title { position: relative; }
+    .center-label .info, .block-title .info {
+      position: absolute;
+      left: 50%;
+      /* put the badge below the label, close to the control line; avoids covering label text */
+      top: calc(100% + 11px);
+      transform: translate(-50%, -50%);
+      z-index: 6;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <!-- 20%: Input -->
+    <div class="section">
+      <div class="input-wrap">
+        <div class="ta-wrap">
+          <textarea id="textInput" placeholder="Paste or type text here…"></textarea>
+          <div id="ph" class="placeholder">Paste or type text here…</div>
+        </div>
+
+        <!-- Input controls below textarea -->
+        <div class="input-controls">
+  <div class="btnwrap">
+    <button id="clearAllBtn" type="button">Clear All</button>
+    <button class="info" type="button" aria-label="Clear All info">!
+      <span class="info-tip">Selects all text, then clears it.</span>
+    </button>
+  </div>
+  <div class="btnwrap">
+    <button id="pasteAllBtn" type="button">Paste All</button>
+    <button class="info" type="button" aria-label="Paste All info">!
+      <span class="info-tip">Replaces the entire text with clipboard contents.</span>
+    </button>
+  </div>
+  <div class="btnwrap">
+    <button id="copyAllBtn" type="button">Copy All</button>
+    <button class="info" type="button" aria-label="Copy All info">!
+      <span class="info-tip">Copies the entire text to the clipboard.</span>
+    </button>
+  </div>
+  <div class="btnwrap">
+    <button id="selectAllBtn" type="button">Select All</button>
+    <button class="info" type="button" aria-label="Select All info">!
+      <span class="info-tip">Selects all text in the box.</span>
+    </button>
+  </div>
+  <div class="btnwrap">
+    <button id="wordSelectBtn" type="button" aria-pressed="false">Word Select</button>
+    <button class="info" type="button" aria-label="Word Select info">!
+      <span class="info-tip">Tap a word in the text box to jump the reader there (stays on until turned off or Play).</span>
+    </button>
+  </div>
+</div>
+      </div>
+    </div>
+
+    <!-- 30%: Word -->
+    <div class="section">
+      <div class="stage" id="stage">
+        <div id="word" class="word"></div>
+      </div>
+    </div>
+
+    <!-- 50%: Bottom -->
+    <div class="section">
+      <div class="bottom">
+        <!-- Progress line above controls -->
+        <div id="progressTime" class="progress-line"></div>
+
+        <div class="line">
+          <button id="play">Play</button>
+          <button id="pause">Pause</button>
+          <button id="reset">Reset</button>
+        </div>
+
+        <div class="center-group">
+          <div class="center-label">
+            Center Word
+            <button class="info" type="button" aria-label="Center Word info">!
+              <span class="info-tip">Shift word left/right in the display.</span>
+            </button>
+          </div>
+          <div class="line">
+            <button id="left">&lt;</button>
+            <div id="centerVal">0px</div>
+            <button id="right">&gt;</button>
+          </div>
+        </div>
+
+        <!-- Fix Hyphens + Highlighter -->
+        <div class="line">
+          <div class="btnwrap">
+            <button id="fixHyphens">Fix Hyphens</button>
+            <button class="info" type="button" aria-label="Fix Hyphens info">!
+              <span class="info-tip">Review and replace hyphen-like cases (line-break pairs and inline hyphens).</span>
+            </button>
+          </div>
+          <div class="btnwrap">
+            <button id="toggleHighlight" type="button">Highlighter: Off</button>
+            <button class="info" type="button" aria-label="Highlighter info">!
+              <span class="info-tip">Highlights the current word in the textarea while playing.</span>
+            </button>
+          </div>
+        </div>
+        <div class="settings">
+          <div class="blocks-row">
+            <div class="block">
+              <div class="block-title">
+                Long Words
+                <button class="info" type="button" aria-label="Long Words info">!
+                  <span class="info-tip">Extra delay per character past 6 (letters/digits only).</span>
+                </button>
+              </div>
+              <div class="stepper">
+                <button id="longDec" type="button" aria-label="Decrease long words slowdown">−</button>
+                <input id="longSlow" type="number" min="0" max="1.50" step="0.01" inputmode="decimal">
+                <button id="longInc" type="button" aria-label="Increase long words slowdown">+</button>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="block-title">
+                Punctuation
+                <button class="info" type="button" aria-label="Punctuation info">!
+                  <span class="info-tip">Extra delay per punctuation character anywhere in the token.</span>
+                </button>
+              </div>
+              <div class="stepper">
+                <button id="puncDec" type="button" aria-label="Decrease punctuation slowdown">−</button>
+                <input id="puncSlow" type="number" min="0" max="1.50" step="0.01" inputmode="decimal">
+                <button id="puncInc" type="button" aria-label="Increase punctuation slowdown">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="blocks-row">
+            <div class="block">
+              <div class="block-title">
+                WPM
+                <button class="info" type="button" aria-label="WPM info">!
+                  <span class="info-tip">Base reading speed.</span>
+                </button>
+              </div>
+              <div class="stepper">
+                <button id="wpmDec" type="button" aria-label="Decrease WPM">−</button>
+                <input id="wpm" type="number" min="50" max="1000" step="10" inputmode="numeric">
+                <button id="wpmInc" type="button" aria-label="Increase WPM">+</button>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="block-title">
+                Word size
+                <button class="info" type="button" aria-label="Word size info">!
+                  <span class="info-tip">Maximum display font size (auto-fit).</span>
+                </button>
+              </div>
+              <div class="stepper">
+                <button id="sizeDec" type="button" aria-label="Decrease word size">−</button>
+                <input id="wordSize" type="number" min="16" max="240" step="6" inputmode="numeric">
+                <button id="sizeInc" type="button" aria-label="Increase word size">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="blocks-row">
+            <div class="block" style="min-width:160px">
+              <div class="block-title">
+                Background
+                <button class="info" type="button" aria-label="Background info">!
+                  <span class="info-tip">Change app background color.</span>
+                </button>
+              </div>
+              <input id="bgColor" type="color" aria-label="Background color">
+            </div>
+
+            <div class="block" style="min-width:160px">
+              <div class="block-title">
+                Content
+                <button class="info" type="button" aria-label="Content info">!
+                  <span class="info-tip">Change text/UI color.</span>
+                </button>
+              </div>
+              <input id="fgColor" type="color" aria-label="Content color">
+            </div>
+          </div>
+
+          <div id="colorNote" class="color-note"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hyphen Review Modal -->
+  <div id="hyModal" class="modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hyTitle">
+      <div class="modal-header">
+        <h2 id="hyTitle">Fix Hyphens (Review)</h2>
+        <button id="hyClose" class="smallbtn" type="button">Close</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-controls">
+          <label><input type="checkbox" id="hySelectAll"> Select all</label>
+          <div class="hint">
+            Includes <b>line-break pairs</b> (prefix + next-line word) and <b>inline hyphen tokens</b>.
+            Check items to replace, then Apply.
+          </div>
+        </div>
+
+        <div id="hyDiag" class="diag"></div>
+        <div id="hyList" class="hy-list"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="hyCancel" class="smallbtn" type="button">Cancel</button>
+        <button id="hyApply" class="smallbtn" type="button">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const formatTime = (sec) => {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${String(s).padStart(2, "0")}`;
+    };
+
+    const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    /* ---------- Theme (BG/FG) ---------- */
+    const Theme = (() => {
+      const els = { bg: $("bgColor"), fg: $("fgColor"), note: $("colorNote") };
+      const KEY_BG = "bgColor";
+      const KEY_FG = "fgColor";
+      let lastGood = { bg: "#ffffff", fg: "#111111" };
+
+      const norm = (hex) => String(hex || "").trim().toLowerCase();
+
+      const setVars = (bg, fg) => {
+        document.documentElement.style.setProperty("--bg", bg);
+        document.documentElement.style.setProperty("--fg", fg);
+      };
+
+      const applyIfValid = (bg, fg, source) => {
+        bg = norm(bg); fg = norm(fg);
+        if (!bg || !fg) return false;
+
+        if (bg === fg) {
+          if (source === "bg") els.bg.value = lastGood.bg;
+          if (source === "fg") els.fg.value = lastGood.fg;
+          els.note.textContent = "Background and Content colors cannot be the same.";
+          return false;
+        }
+
+        lastGood = { bg, fg };
+        localStorage.setItem(KEY_BG, bg);
+        localStorage.setItem(KEY_FG, fg);
+        setVars(bg, fg);
+        els.note.textContent = "";
+        return true;
+      };
+
+      const init = () => {
+        const savedBg = localStorage.getItem(KEY_BG) ?? "#ffffff";
+        const savedFg = localStorage.getItem(KEY_FG) ?? "#111111";
+
+        els.bg.value = savedBg;
+        els.fg.value = savedFg;
+
+        if (norm(savedBg) === norm(savedFg)) {
+          els.fg.value = "#111111";
+          applyIfValid(els.bg.value, els.fg.value, "fg");
+        } else {
+          applyIfValid(savedBg, savedFg);
+        }
+
+        els.bg.addEventListener("input", () => applyIfValid(els.bg.value, els.fg.value, "bg"));
+        els.fg.addEventListener("input", () => applyIfValid(els.bg.value, els.fg.value, "fg"));
+      };
+
+      return { init };
+    })();
+
+    /* ---------- Placeholder overlay sync ---------- */
+    const Placeholder = (() => {
+      const input = $("textInput");
+      const ph = $("ph");
+
+      const sync = () => {
+        const hasText = input.value.trim().length > 0;
+        ph.classList.toggle("hidden", hasText);
+      };
+
+      const init = () => {
+        input.addEventListener("input", sync);
+        input.addEventListener("focus", sync);
+        input.addEventListener("blur", sync);
+        sync();
+      };
+
+      return { init, sync };
+    })();
+
+    /* ---------- Info popovers (click toggle; outside click closes) ---------- */
+    const InfoTips = (() => {
+      const closeAll = () => document.querySelectorAll(".info.open").forEach(b => b.classList.remove("open"));
+
+      const init = () => {
+        document.querySelectorAll(".info").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const willOpen = !btn.classList.contains("open");
+            closeAll();
+            if (willOpen) btn.classList.add("open");
+          });
+        });
+
+        document.addEventListener("click", closeAll);
+        window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAll(); });
+      };
+
+      return { init };
+    })();
+
+    /* ---------- Reader ---------- */
+    const Reader = (() => {
+      const SAFETY = 1;
+      const NUDGE = 2;
+      const LEN_THRESHOLD = 6;
+
+      const els = {
+        stage: $("stage"),
+        word: $("word"),
+        input: $("textInput"),
+        wpm: $("wpm"),
+        size: $("wordSize"),
+        progressTime: $("progressTime"),
+
+        centerVal: $("centerVal"),
+        left: $("left"),
+        right: $("right"),
+
+        play: $("play"),
+        pause: $("pause"),
+        reset: $("reset"),
+
+        wpmDec: $("wpmDec"),
+        wpmInc: $("wpmInc"),
+        sizeDec: $("sizeDec"),
+        sizeInc: $("sizeInc"),
+
+        longSlow: $("longSlow"),
+        puncSlow: $("puncSlow"),
+        longDec: $("longDec"),
+        longInc: $("longInc"),
+        puncDec: $("puncDec"),
+        puncInc: $("puncInc"),
+
+        toggleHighlight: $("toggleHighlight"),
+
+        selectAllBtn: $("selectAllBtn"),
+        wordSelectBtn: $("wordSelectBtn"),
+        clearAllBtn: $("clearAllBtn"),
+        pasteAllBtn: $("pasteAllBtn"),
+        copyAllBtn: $("copyAllBtn"),
+      };
+
+      let words = [];
+      let spans = [];
+      let index = 0;
+      let timeoutId = null;
+      let playing = false;
+      let centerOffset = 0;
+      let highlightOn = false;
+      let wordSelectArmed = false;
+
+      let mirror = null;
+      const ensureMirror = () => {
+        if (mirror) return mirror;
+        mirror = document.createElement("div");
+        mirror.style.position = "fixed";
+        mirror.style.left = "-9999px";
+        mirror.style.top = "-9999px";
+        mirror.style.whiteSpace = "pre-wrap";
+        mirror.style.wordWrap = "break-word";
+        mirror.style.visibility = "hidden";
+        mirror.style.pointerEvents = "none";
+        document.body.appendChild(mirror);
+        return mirror;
+      };
+
+      const syncMirrorStyle = () => {
+        const m = ensureMirror();
+        const cs = getComputedStyle(els.input);
+        m.style.fontFamily = cs.fontFamily;
+        m.style.fontSize = cs.fontSize;
+        m.style.fontWeight = cs.fontWeight;
+        m.style.letterSpacing = cs.letterSpacing;
+        m.style.lineHeight = cs.lineHeight;
+        m.style.padding = cs.padding;
+        m.style.border = cs.border;
+        m.style.width = cs.width;
+      };
+
+      const escHtml = (s) =>
+        String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      const clampFontSize = (maxSize) => {
+        let low = 8, high = maxSize, best = low;
+        while (low <= high) {
+          const mid = (low + high) >> 1;
+          els.word.style.fontSize = mid + "px";
+          const w = els.word.getBoundingClientRect();
+          const s = els.stage.getBoundingClientRect();
+          if (w.width <= s.width - SAFETY && w.height <= s.height - SAFETY) {
+            best = mid; low = mid + 1;
+          } else {
+            high = mid - 1;
+          }
+        }
+        return best;
+      };
+
+      const rebuild = () => {
+        const text = els.input.value;
+        const re = /\S+/g;
+        const w = [];
+        const sp = [];
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          w.push(m[0]);
+          sp.push({ start: m.index, end: m.index + m[0].length });
+        }
+        words = w;
+        spans = sp;
+        index = Math.min(index, Math.max(0, words.length - 1));
+      };
+
+      const scrollToSelection = (start, end) => {
+        syncMirrorStyle();
+        const m = ensureMirror();
+
+        const before = els.input.value.slice(0, start);
+        const sel = els.input.value.slice(start, end) || " ";
+
+        m.innerHTML = escHtml(before) + `<span id="__mk__">${escHtml(sel)}</span>`;
+        const mk = m.querySelector("#__mk__");
+        const mkTop = mk ? mk.offsetTop : 0;
+
+        const visible = els.input.clientHeight;
+        const target = Math.max(0, mkTop - visible * 0.35);
+        els.input.scrollTop = target;
+      };
+
+      const applyHighlight = () => {
+        if (!highlightOn) return;
+        if (!spans.length || !spans[index]) return;
+
+        const { start, end } = spans[index];
+        els.input.focus({ preventScroll: true });
+        els.input.setSelectionRange(start, end);
+        scrollToSelection(start, end);
+      };
+
+      const render = () => {
+        if (!words.length) {
+          els.word.textContent = "";
+          els.progressTime.textContent = "";
+          return;
+        }
+
+        const wpm = Number(els.wpm.value) || 150;
+        const desired = Number(els.size.value) || 48;
+
+        els.word.textContent = words[index];
+        els.word.style.transform = `translateX(${centerOffset}px)`;
+        els.word.style.fontSize = clampFontSize(desired) + "px";
+
+        const total = Math.ceil((words.length / wpm) * 60);
+        const remaining = Math.ceil(((words.length - index) / wpm) * 60);
+
+        els.progressTime.textContent =
+          `Word ${index + 1} of ${words.length} — ${formatTime(remaining)} remaining / ${formatTime(total)} total`;
+
+        if (playing && highlightOn) applyHighlight();
+      };
+
+      const stop = () => {
+        playing = false;
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      };
+
+      const wordLength = (w) => (w.match(/[\p{L}\p{N}]/gu) || []).length;
+      const baseMs = () => 60000 / (Number(els.wpm.value) || 150);
+      const toMs = (sec) => Math.max(0, Number(sec || 0)) * 1000;
+
+      const enforceSecsFormat = (input) => {
+        const raw = String(input.value ?? "").trim();
+        if (raw === "" || raw === "." || /^-?\d+\.$/.test(raw)) return;
+        const n = Number(raw);
+        if (!isFinite(n)) return;
+
+        const min = input.min === "" ? -Infinity : Number(input.min);
+        const max = input.max === "" ? Infinity : Number(input.max);
+        const clamped = Math.min(max, Math.max(min, n));
+        input.value = clamped.toFixed(2);
+      };
+
+      const punctuationCharCount = (token) => {
+        if (!token) return 0;
+        let count = 0;
+        for (const ch of token) {
+          if (!/[\p{L}\p{N}]/u.test(ch)) count += 1;
+        }
+        return count;
+      };
+
+      const wordDelayMs = (w) => {
+        const base = baseMs();
+
+        const len = wordLength(w);
+        const perCharMs = toMs(els.longSlow.value);
+        const extraChars = Math.max(0, len - LEN_THRESHOLD);
+        const longExtra = extraChars * perCharMs;
+
+        const perPuncMs = toMs(els.puncSlow.value);
+        const puncExtra = punctuationCharCount(w) * perPuncMs;
+
+        return Math.ceil(base + longExtra + puncExtra);
+      };
+
+      const scheduleNext = () => {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+
+        if (!playing || !words.length) return;
+
+        const delay = wordDelayMs(words[index] || "");
+
+        timeoutId = setTimeout(() => {
+          if (!playing) return;
+          if (index < words.length - 1) {
+            index++;
+            render();
+            scheduleNext();
+          } else {
+            stop();
+          }
+        }, delay);
+      };
+
+      const bumpNumber = (input, delta) => {
+        const step = Number(input.step) || 1;
+        const min = input.min === "" ? -Infinity : Number(input.min);
+        const max = input.max === "" ? Infinity : Number(input.max);
+
+        const current = Number(input.value) || 0;
+        const next = Math.min(max, Math.max(min, current + delta * step));
+        input.value = next;
+
+        if (input === els.longSlow || input === els.puncSlow) {
+          input.value = Number(input.value).toFixed(2);
+        }
+
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+
+      const setHighlightButton = () => {
+        els.toggleHighlight.textContent = `Highlighter: ${highlightOn ? "On" : "Off"}`;
+      };
+
+      const setWordSelectButton = () => {
+        els.wordSelectBtn.classList.toggle("toggle-on", wordSelectArmed);
+        els.wordSelectBtn.setAttribute("aria-pressed", wordSelectArmed ? "true" : "false");
+      };
+
+      const selectTokenAtCaret = () => {
+        if (playing) return;
+        if (!wordSelectArmed) return;
+
+        const pos = els.input.selectionStart ?? 0;
+
+        let found = -1;
+        for (let i = 0; i < spans.length; i++) {
+          const s = spans[i];
+          if (pos >= s.start && pos <= s.end) { found = i; break; }
+        }
+        if (found === -1) return;
+
+        const { start, end } = spans[found];
+        els.input.setSelectionRange(start, end);
+        scrollToSelection(start, end);
+
+        index = found;
+        render();
+      };
+
+      const init = () => {
+        els.wpm.value = localStorage.getItem("wpm") ?? 150;
+        els.size.value = localStorage.getItem("wordSize") ?? 48;
+
+        els.longSlow.value = localStorage.getItem("longSlow") ?? "0.10";
+        els.puncSlow.value = localStorage.getItem("puncSlow") ?? "0.10";
+        enforceSecsFormat(els.longSlow);
+        enforceSecsFormat(els.puncSlow);
+
+        centerOffset = Number(localStorage.getItem("centerOffset") ?? 0);
+        els.centerVal.textContent = centerOffset + "px";
+
+        highlightOn = (localStorage.getItem("highlightOn") ?? "0") === "1";
+        setHighlightButton();
+
+        setWordSelectButton();
+
+        /* SPACEBAR pauses while playing (and prevents typing a space into the textarea) */
+        window.addEventListener("keydown", (e) => {
+          const isSpace = (e.code === "Space" || e.key === " " || e.key === "Spacebar");
+          if (!isSpace) return;
+          if (!playing) return;
+
+          e.preventDefault();
+          stop();
+        }, { capture: true });
+
+        /* Select All button */
+        els.selectAllBtn.addEventListener("click", () => {
+          els.input.focus({ preventScroll: false });
+
+        /* Copy All button */
+        els.copyAllBtn.addEventListener("click", async () => {
+          const txt = els.input.value ?? "";
+          try {
+            await navigator.clipboard.writeText(txt);
+          } catch (err) {
+            // Fallback if clipboard API is blocked
+            els.input.focus({ preventScroll: false });
+            requestAnimationFrame(() => {
+              els.input.select();
+              try { document.execCommand('copy'); } catch (_) {}
+              els.input.setSelectionRange(0, 0);
+            });
+          }
+        });
+
+        /* Paste All button */
+        els.pasteAllBtn.addEventListener("click", async () => {
+          try {
+            const clip = await navigator.clipboard.readText();
+            els.input.focus({ preventScroll: false });
+            requestAnimationFrame(() => {
+              els.input.select();
+              els.input.value = clip ?? "";
+              els.input.scrollTop = 0;
+              stop();
+              index = 0;
+              rebuild();
+              Placeholder.sync();
+              render();
+            });
+          } catch (err) {
+            // Clipboard read may be blocked; user can use system paste
+            els.input.focus({ preventScroll: false });
+          }
+        });
+
+        /* Clear All button */
+        els.clearAllBtn.addEventListener("click", () => {
+          els.input.focus({ preventScroll: false });
+          requestAnimationFrame(() => {
+            els.input.select();
+            els.input.value = "";
+            els.input.scrollTop = 0;
+            stop();
+            index = 0;
+            spans = [];
+            words = [];
+            Placeholder.sync();
+            render();
+          });
+        });
+          requestAnimationFrame(() => els.input.select());
+        });
+
+        /* Word Select toggle (stays ON until toggled OFF, or until Play) */
+        els.wordSelectBtn.addEventListener("click", () => {
+          wordSelectArmed = !wordSelectArmed;
+          setWordSelectButton();
+        });
+
+        /* Word Select select-on-mouseup */
+        els.input.addEventListener("mouseup", () => {
+          if (!wordSelectArmed) return;
+          requestAnimationFrame(selectTokenAtCaret);
+        });
+
+        /* Keep textarea focused while still allowing bottom button clicks */
+        document.querySelectorAll(".bottom button").forEach((btn) => {
+          btn.addEventListener("mousedown", (e) => e.preventDefault());
+        });
+
+        /* NEW: Reset to top on paste */
+        let pastedRecently = false;
+        els.input.addEventListener("paste", () => { pastedRecently = true; });
+
+        els.input.addEventListener("input", (e) => {
+          rebuild();
+
+          if (pastedRecently || e.inputType === "insertFromPaste") {
+            stop();
+            index = 0;
+          }
+
+          pastedRecently = false;
+          render();
+        });
+
+        els.wpm.addEventListener("input", () => {
+          localStorage.setItem("wpm", els.wpm.value);
+          if (playing) scheduleNext();
+          render();
+        });
+
+        els.size.addEventListener("input", () => {
+          localStorage.setItem("wordSize", els.size.value);
+          render();
+        });
+
+        els.longSlow.addEventListener("input", () => {
+          localStorage.setItem("longSlow", els.longSlow.value);
+          if (playing) scheduleNext();
+          render();
+        });
+        els.longSlow.addEventListener("blur", () => {
+          enforceSecsFormat(els.longSlow);
+          localStorage.setItem("longSlow", els.longSlow.value);
+          if (playing) scheduleNext();
+        });
+
+        els.puncSlow.addEventListener("input", () => {
+          localStorage.setItem("puncSlow", els.puncSlow.value);
+          if (playing) scheduleNext();
+          render();
+        });
+        els.puncSlow.addEventListener("blur", () => {
+          enforceSecsFormat(els.puncSlow);
+          localStorage.setItem("puncSlow", els.puncSlow.value);
+          if (playing) scheduleNext();
+        });
+
+        els.wpmDec.addEventListener("click", () => bumpNumber(els.wpm, -1));
+        els.wpmInc.addEventListener("click", () => bumpNumber(els.wpm, +1));
+        els.sizeDec.addEventListener("click", () => bumpNumber(els.size, -1));
+        els.sizeInc.addEventListener("click", () => bumpNumber(els.size, +1));
+
+        els.longDec.addEventListener("click", () => bumpNumber(els.longSlow, -1));
+        els.longInc.addEventListener("click", () => bumpNumber(els.longSlow, +1));
+        els.puncDec.addEventListener("click", () => bumpNumber(els.puncSlow, -1));
+        els.puncInc.addEventListener("click", () => bumpNumber(els.puncSlow, +1));
+
+        els.left.addEventListener("click", () => {
+          centerOffset -= NUDGE;
+          els.centerVal.textContent = centerOffset + "px";
+          localStorage.setItem("centerOffset", centerOffset);
+          render();
+        });
+
+        els.right.addEventListener("click", () => {
+          centerOffset += NUDGE;
+          els.centerVal.textContent = centerOffset + "px";
+          localStorage.setItem("centerOffset", centerOffset);
+          render();
+        });
+
+        els.toggleHighlight.addEventListener("click", () => {
+          highlightOn = !highlightOn;
+          localStorage.setItem("highlightOn", highlightOn ? "1" : "0");
+          setHighlightButton();
+          if (playing && highlightOn) applyHighlight();
+        });
+
+        els.play.addEventListener("click", () => {
+          if (playing || !words.length) return;
+
+          if (wordSelectArmed) {
+            wordSelectArmed = false;
+            setWordSelectButton();
+          }
+
+          playing = true;
+          if (highlightOn) applyHighlight();
+          scheduleNext();
+        });
+
+        els.pause.addEventListener("click", stop);
+
+        els.reset.addEventListener("click", () => {
+          stop();
+          index = 0;
+          render();
+        });
+
+        window.addEventListener("resize", render);
+
+        rebuild();
+        render();
+      };
+
+      return {
+        init,
+        stop,
+        rebuild,
+        render,
+        getText: () => els.input.value,
+        setText: (t) => (els.input.value = t)
+      };
+    })();
+
+    /* ---------- Hyphen Review (behavior unchanged) ---------- */
+    const HyphenReview = (() => {
+      const els = {
+        open: $("fixHyphens"),
+        modal: $("hyModal"),
+        list: $("hyList"),
+        diag: $("hyDiag"),
+        selectAll: $("hySelectAll"),
+        apply: $("hyApply"),
+        cancel: $("hyCancel"),
+        close: $("hyClose"),
+      };
+
+      const HYPHENS = ["-","\u00AD","\u2010","\u2011","\u2012","\u2013","\u2014","\u2212","\uFE63","\uFF0D"];
+      const HSET = new Set(HYPHENS);
+      const HCLASS = "[-\\u00AD\\u2010\\u2011\\u2012\\u2013\\u2014\\u2212\\uFE63\\uFF0D]";
+
+      const hasHyphenLike = (token) => {
+        if (token.includes("&shy;") || token.includes("&#173;")) return true;
+        for (const ch of token) if (HSET.has(ch)) return true;
+        return false;
+      };
+
+      const normalizeInlineSuggestion = (token) => {
+        let t = token.replace(/\u00AD/g, "").replaceAll("&shy;", "").replaceAll("&#173;", "");
+        for (const ch of HYPHENS) if (ch !== "-") t = t.split(ch).join("-");
+        return t;
+      };
+
+      const scanHyphens = (text) => {
+        const counts = new Map();
+        for (const ch of text) if (HSET.has(ch)) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+        const entityCount = (text.match(/&shy;|&#173;/g) || []).length;
+        if (entityCount) counts.set("&shy;/&#173;", entityCount);
+        return counts;
+      };
+
+      const label = (ch) => {
+        if (ch === "&shy;/&#173;") return ch;
+        const cp = ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+        return `${ch} (U+${cp})`;
+      };
+
+      const applyExactTokenReplacement = (text, oldToken, newToken) => {
+        const parts = text.split(/(\s+)/);
+        for (let i = 0; i < parts.length; i++) {
+          const p = parts[i];
+          if (!p || /^\s+$/.test(p)) continue;
+          if (p === oldToken) parts[i] = newToken;
+        }
+        return parts.join("");
+      };
+
+      const buildCases = (text) => {
+        const cases = [];
+        const pairedLefts = new Set();
+
+        const pairRe = new RegExp(`(\\p{L}+?)${HCLASS}\\s*\\r?\\n\\s*(\\p{L}+)`, "gu");
+        let m;
+        while ((m = pairRe.exec(text)) !== null) {
+          const left = m[1], right = m[2];
+          pairedLefts.add(left);
+          cases.push({
+            kind: "linebreak",
+            displayOld: `${left}-${right}`,
+            defaultNew: `${left}${right}`,
+            apply: (t, newVal) =>
+              t.replace(
+                new RegExp(`${escapeRegExp(left)}${HCLASS}\\s*\\r?\\n\\s*${escapeRegExp(right)}`, "gu"),
+                newVal
+              )
+          });
+        }
+
+        const lbSeen = new Set();
+        const linebreak = cases
+          .filter(c => c.kind === "linebreak")
+          .filter(c => lbSeen.has(c.displayOld) ? false : (lbSeen.add(c.displayOld), true));
+
+        const tokens = text.match(/\S+/g) || [];
+        const inlineSeen = new Set();
+        const inline = [];
+
+        for (let i = 0; i < tokens.length; i++) {
+          const tok = tokens[i];
+          if (!hasHyphenLike(tok)) continue;
+
+          const last = tok[tok.length - 1];
+          const endsHyphen = HSET.has(last);
+          const nextTok = tokens[i + 1] || "";
+          const nextStartsLetters = /^\p{L}+/u.test(nextTok);
+
+          if (endsHyphen && nextStartsLetters) {
+            const leftLetters = tok.slice(0, -1);
+            if (pairedLefts.has(leftLetters)) continue;
+          }
+
+          if (inlineSeen.has(tok)) continue;
+          inlineSeen.add(tok);
+
+          inline.push({
+            kind: "inline",
+            displayOld: tok,
+            defaultNew: normalizeInlineSuggestion(tok),
+            apply: (t, newVal) => applyExactTokenReplacement(t, tok, newVal)
+          });
+        }
+
+        return [...linebreak, ...inline];
+      };
+
+      let current = [];
+
+      const open = () => {
+        const text = Reader.getText() || "";
+        const counts = scanHyphens(text);
+        const entries = Array.from(counts.entries());
+
+        els.diag.textContent = entries.length
+          ? "Diagnostics: Found hyphen-like characters in text → " + entries.map(([ch,n]) => `${label(ch)} × ${n}`).join("  •  ")
+          : "Diagnostics: No hyphen-like characters detected in the text.";
+
+        current = buildCases(text);
+        els.list.innerHTML = "";
+
+        if (!current.length) {
+          const div = document.createElement("div");
+          div.style.opacity = "0.8";
+          div.style.fontSize = "13px";
+          div.textContent = "No hyphen cases found.";
+          els.list.appendChild(div);
+        } else {
+          current.forEach((c, idx) => {
+            const row = document.createElement("div");
+            row.className = "hy-row";
+
+            const badge = c.kind === "linebreak"
+              ? `<span class="badge">line-break</span>`
+              : `<span class="badge">inline</span>`;
+
+            row.innerHTML = `
+              <input type="checkbox" class="hy-cb" data-idx="${idx}">
+              <div><code class="hy-old"></code>${badge}</div>
+              <div style="opacity:.75;font-size:12px;">→</div>
+              <input type="text" class="hy-new" />
+            `;
+
+            row.querySelector(".hy-old").textContent = c.displayOld;
+            row.querySelector(".hy-new").value = c.defaultNew;
+            els.list.appendChild(row);
+          });
+        }
+
+        els.selectAll.checked = false;
+        els.modal.style.display = "flex";
+        els.modal.setAttribute("aria-hidden", "false");
+      };
+
+      const close = () => {
+        els.modal.style.display = "none";
+        els.modal.setAttribute("aria-hidden", "true");
+        els.list.innerHTML = "";
+        els.diag.textContent = "";
+        els.selectAll.checked = false;
+      };
+
+      const apply = () => {
+        let text = Reader.getText();
+        els.list.querySelectorAll(".hy-row").forEach((row) => {
+          const cb = row.querySelector(".hy-cb");
+          if (!cb.checked) return;
+          const idx = Number(cb.dataset.idx);
+          const newVal = row.querySelector(".hy-new").value ?? "";
+          text = current[idx].apply(text, newVal);
+        });
+
+        Reader.setText(text);
+        Placeholder.sync();
+        Reader.stop();
+        Reader.rebuild();
+        Reader.render();
+        close();
+      };
+
+      const init = () => {
+        els.open.addEventListener("click", open);
+
+        els.selectAll.addEventListener("change", () => {
+          const checked = els.selectAll.checked;
+          els.list.querySelectorAll(".hy-cb").forEach(cb => cb.checked = checked);
+        });
+
+        $("hyApply").addEventListener("click", apply);
+        $("hyCancel").addEventListener("click", close);
+        $("hyClose").addEventListener("click", close);
+
+        els.modal.addEventListener("click", (e) => { if (e.target === els.modal) close(); });
+        window.addEventListener("keydown", (e) => { if (e.key === "Escape" && els.modal.style.display === "flex") close(); });
+      };
+
+      return { init };
+    })();
+
+    Theme.init();
+    Placeholder.init();
+    InfoTips.init();
+    Reader.init();
+    HyphenReview.init();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
