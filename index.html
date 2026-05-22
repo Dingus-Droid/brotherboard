@@ -3,13 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>RSVP4Dingus</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="RSVP4Dingus">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>RSVP Reader</title>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -527,6 +521,12 @@
         <!-- Input controls below textarea -->
         <div class="input-controls">
   <div class="btnwrap">
+    <button id="selectAllBtn" type="button">Select All</button>
+    <button class="info" type="button" aria-label="Select All info">!
+      <span class="info-tip">Selects all text in the box.</span>
+    </button>
+  </div>
+  <div class="btnwrap">
     <button id="clearAllBtn" type="button">Clear All</button>
     <button class="info" type="button" aria-label="Clear All info">!
       <span class="info-tip">Selects all text, then clears it.</span>
@@ -542,12 +542,6 @@
     <button id="copyAllBtn" type="button">Copy All</button>
     <button class="info" type="button" aria-label="Copy All info">!
       <span class="info-tip">Copies the entire text to the clipboard.</span>
-    </button>
-  </div>
-  <div class="btnwrap">
-    <button id="selectAllBtn" type="button">Select All</button>
-    <button class="info" type="button" aria-label="Select All info">!
-      <span class="info-tip">Selects all text in the box.</span>
     </button>
   </div>
   <div class="btnwrap">
@@ -1533,12 +1527,6 @@
     InfoTips.init();
     Reader.init();
     HyphenReview.init();
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      });
-    }
   </script>
 </body>
 </html>
