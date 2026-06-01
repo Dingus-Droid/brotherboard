@@ -3,14 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>RSVP4Dingus</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="RSVP4Dingus">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="icon" href="favicon.ico">
+  <title>RSVP Reader</title>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -21,7 +15,7 @@
 
       /* === UNIFORM CONTROL SYSTEM === */
       --ctrl-h: 44px;
-      --ctrl-fs: 14px;
+      --ctrl-fs: 16px;
       --ctrl-b: 2px;
       --ctrl-r: 10px;
       --ctrl-px: 14px;
@@ -34,6 +28,7 @@
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       background: var(--bg);
       color: var(--fg);
+      -webkit-text-size-adjust: 100%;
     }
 
     /* Native selection: invert based on theme */
@@ -45,7 +40,7 @@
       height: 100%;
       width: 100%;
       display: grid;
-      grid-template-rows: 20fr 30fr 50fr;
+      grid-template-rows: 40fr 40fr 20fr;
       background: var(--bg);
       color: var(--fg);
     }
@@ -76,7 +71,7 @@
       height: 100%;
       resize: none;
       padding: 10px;
-      font-size: 14px;
+      font-size: 16px;
       background: var(--bg);
       color: var(--fg);
       border: var(--ctrl-b) solid var(--fg);
@@ -94,7 +89,7 @@
       justify-content: center;
       pointer-events: none;
       user-select: none;
-      font-size: 14px;
+      font-size: 16px;
       color: var(--fg);
       opacity: 0.55;
       padding: 12px;
@@ -136,7 +131,54 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 14px;
+      gap: 12px;
+      padding: 10px 0 calc(60px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .settings-sheet {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: min(52dvh, 560px);
+      max-height: calc(100dvh - 12px);
+      transform: translateY(calc(100% - 58px - env(safe-area-inset-bottom, 0px)));
+      transition: transform 0.22s ease;
+      background: var(--bg);
+      color: var(--fg);
+      border: var(--ctrl-b) solid var(--fg);
+      border-bottom: 0;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      box-shadow: 0 -12px 40px rgba(0,0,0,.22);
+      z-index: 9998;
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
+    }
+
+    .settings-sheet.open { transform: translateY(0); }
+
+    .settings-handle {
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+      border-bottom: var(--ctrl-b) solid var(--fg);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .settings-handle button { min-width: 160px; }
+
+    .settings-sheet.open .settings-handle {
+      padding-bottom: 10px;
+    }
+
+    .settings-body {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 14px 14px calc(16px + env(safe-area-inset-bottom, 0px));
     }
 
     .line {
@@ -155,7 +197,7 @@
     }
 
     .center-label {
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 650;
       display: inline-flex;
       align-items: center;
@@ -163,7 +205,7 @@
     }
 
     .progress-line {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 500;
       text-align: center;
       padding: 0 14px;
@@ -184,6 +226,7 @@
       justify-content: center;
       line-height: 1;
       user-select: none;
+      touch-action: manipulation;
     }
     button:active { transform: translateY(1px); }
 
@@ -229,7 +272,7 @@
     .blocks-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 28px;
+      gap: 24px;
       align-items: flex-start;
       justify-content: center;
       width: 100%;
@@ -244,7 +287,7 @@
     }
 
     .block-title {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 650;
       text-align: center;
       display: inline-flex;
@@ -267,7 +310,7 @@
     }
 
     input[type="number"] {
-      width: 104px;
+      width: 112px;
       height: var(--ctrl-h);
       padding: 0 10px;
       font-size: var(--ctrl-fs);
@@ -292,6 +335,7 @@
       border-radius: var(--ctrl-r);
       background: var(--bg);
       cursor: pointer;
+      touch-action: manipulation;
     }
     input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
     input[type="color"]::-webkit-color-swatch {
@@ -578,8 +622,16 @@
           <button id="pause">Pause</button>
           <button id="reset">Reset</button>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <div class="center-group">
+  <div id="settingsSheet" class="settings-sheet" aria-hidden="true">
+    <div class="settings-handle">
+      <button id="settingsToggle" type="button" aria-expanded="false">Settings</button>
+    </div>
+    <div class="settings-body">
+<div class="center-group">
           <div class="center-label">
             Center Word
             <button class="info" type="button" aria-label="Center Word info">!
@@ -693,7 +745,7 @@
 
           <div id="colorNote" class="color-note"></div>
         </div>
-      </div>
+
     </div>
   </div>
 
@@ -829,6 +881,45 @@
       };
 
       return { init };
+    })();
+
+    /* ---------- Settings Sheet ---------- */
+    const SettingsSheet = (() => {
+      const els = {
+        sheet: $("settingsSheet"),
+        toggle: $("settingsToggle"),
+      };
+
+      const isOpen = () => !!els.sheet && els.sheet.classList.contains("open");
+
+      const setOpen = (open) => {
+        if (!els.sheet || !els.toggle) return;
+        els.sheet.classList.toggle("open", open);
+        els.sheet.setAttribute("aria-hidden", open ? "false" : "true");
+        els.toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      };
+
+      const toggle = () => setOpen(!isOpen());
+
+      const init = () => {
+        if (!els.sheet || !els.toggle) return;
+        els.toggle.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggle();
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!isOpen()) return;
+          if (els.sheet.contains(e.target)) return;
+          setOpen(false);
+        });
+
+        window.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && isOpen()) setOpen(false);
+        });
+      };
+
+      return { init, close: () => setOpen(false) };
     })();
 
     /* ---------- Reader ---------- */
@@ -1131,10 +1222,11 @@
           e.preventDefault();
           stop();
         }, { capture: true });
-
         /* Select All button */
         els.selectAllBtn.addEventListener("click", () => {
-          els.input.focus({ preventScroll: false });
+          els.input.focus({ preventScroll: true });
+          requestAnimationFrame(() => els.input.select());
+        });
 
         /* Copy All button */
         els.copyAllBtn.addEventListener("click", async () => {
@@ -1143,7 +1235,7 @@
             await navigator.clipboard.writeText(txt);
           } catch (err) {
             // Fallback if clipboard API is blocked
-            els.input.focus({ preventScroll: false });
+            els.input.focus({ preventScroll: true });
             requestAnimationFrame(() => {
               els.input.select();
               try { document.execCommand('copy'); } catch (_) {}
@@ -1156,7 +1248,7 @@
         els.pasteAllBtn.addEventListener("click", async () => {
           try {
             const clip = await navigator.clipboard.readText();
-            els.input.focus({ preventScroll: false });
+            els.input.focus({ preventScroll: true });
             requestAnimationFrame(() => {
               els.input.select();
               els.input.value = clip ?? "";
@@ -1169,13 +1261,13 @@
             });
           } catch (err) {
             // Clipboard read may be blocked; user can use system paste
-            els.input.focus({ preventScroll: false });
+            els.input.focus({ preventScroll: true });
           }
         });
 
         /* Clear All button */
         els.clearAllBtn.addEventListener("click", () => {
-          els.input.focus({ preventScroll: false });
+          els.input.focus({ preventScroll: true });
           requestAnimationFrame(() => {
             els.input.select();
             els.input.value = "";
@@ -1187,8 +1279,6 @@
             Placeholder.sync();
             render();
           });
-        });
-          requestAnimationFrame(() => els.input.select());
         });
 
         /* Word Select toggle (stays ON until toggled OFF, or until Play) */
@@ -1290,6 +1380,7 @@
 
         els.play.addEventListener("click", () => {
           if (playing || !words.length) return;
+          SettingsSheet.close();
 
           if (wordSelectArmed) {
             wordSelectArmed = false;
@@ -1531,14 +1622,9 @@
     Theme.init();
     Placeholder.init();
     InfoTips.init();
+    SettingsSheet.init();
     Reader.init();
     HyphenReview.init();
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      });
-    }
   </script>
 </body>
 </html>
