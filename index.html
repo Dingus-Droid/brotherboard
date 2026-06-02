@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>RSVP4Dingus</title>
-  <link rel="apple-touch-icon" href="icon-192.png">
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -19,6 +19,7 @@
       --ctrl-b: 2px;
       --ctrl-r: 10px;
       --ctrl-px: 14px;
+      --sheet-peek: 84px;
     }
 
     html, body {
@@ -132,17 +133,18 @@
       align-items: center;
       justify-content: center;
       gap: 12px;
-      padding: 10px 0 calc(60px + env(safe-area-inset-bottom, 0px));
+      padding: 10px 0 calc(var(--sheet-peek) + env(safe-area-inset-bottom, 0px));
     }
 
     .settings-sheet {
       position: fixed;
-      left: 0;
-      right: 0;
+      left: 50%;
+      right: auto;
       bottom: 0;
+      width: 90%;
       height: min(52dvh, 560px);
       max-height: calc(100dvh - 12px);
-      transform: translateY(calc(100% - 58px - env(safe-area-inset-bottom, 0px)));
+      transform: translate(-50%, calc(100% - var(--sheet-peek) - env(safe-area-inset-bottom, 0px)));
       transition: transform 0.22s ease;
       background: var(--bg);
       color: var(--fg);
@@ -157,10 +159,10 @@
       overflow: visible;
     }
 
-    .settings-sheet.open { transform: translateY(0); }
+    .settings-sheet.open { transform: translate(-50%, 0); }
 
     .settings-handle {
-      padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+      padding: 10px 14px calc(22px + env(safe-area-inset-bottom, 0px));
       border-bottom: var(--ctrl-b) solid var(--fg);
       background: var(--bg);
       display: flex;
@@ -555,6 +557,14 @@
       z-index: 6;
     }
 
+
+    /* ===== SETTINGS SHEET SPACING TWEAKS ===== */
+    .settings-body > .center-group {
+      margin-bottom: 18px;
+    }
+    .settings-body > .line {
+      margin-top: 4px;
+    }
   </style>
 </head>
 
@@ -1089,6 +1099,7 @@
         playing = false;
         clearTimeout(timeoutId);
         timeoutId = null;
+        els.input.readOnly = false;
       };
 
       const wordLength = (w) => (w.match(/[\p{L}\p{N}]/gu) || []).length;
@@ -1224,6 +1235,7 @@
         }, { capture: true });
         /* Select All button */
         els.selectAllBtn.addEventListener("click", () => {
+          els.input.readOnly = false;
           els.input.focus({ preventScroll: true });
           requestAnimationFrame(() => els.input.select());
         });
@@ -1235,6 +1247,7 @@
             await navigator.clipboard.writeText(txt);
           } catch (err) {
             // Fallback if clipboard API is blocked
+            els.input.readOnly = false;
             els.input.focus({ preventScroll: true });
             requestAnimationFrame(() => {
               els.input.select();
@@ -1248,6 +1261,7 @@
         els.pasteAllBtn.addEventListener("click", async () => {
           try {
             const clip = await navigator.clipboard.readText();
+            els.input.readOnly = false;
             els.input.focus({ preventScroll: true });
             requestAnimationFrame(() => {
               els.input.select();
@@ -1261,12 +1275,14 @@
             });
           } catch (err) {
             // Clipboard read may be blocked; user can use system paste
+            els.input.readOnly = false;
             els.input.focus({ preventScroll: true });
           }
         });
 
         /* Clear All button */
         els.clearAllBtn.addEventListener("click", () => {
+          els.input.readOnly = false;
           els.input.focus({ preventScroll: true });
           requestAnimationFrame(() => {
             els.input.select();
@@ -1381,6 +1397,11 @@
         els.play.addEventListener("click", () => {
           if (playing || !words.length) return;
           SettingsSheet.close();
+          els.input.readOnly = true;
+
+          if (document.activeElement === els.input) {
+            els.input.blur();
+          }
 
           if (wordSelectArmed) {
             wordSelectArmed = false;
