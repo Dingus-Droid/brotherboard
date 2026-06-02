@@ -1,4 +1,4 @@
-const CACHE = 'rsvp4dingus-v1';
+const CACHE = 'rsvp4dingus-v2';
 const ASSETS = [
   '/brotherboard/',
   '/brotherboard/index.html',
@@ -22,7 +22,19 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
+  if (e.request.url.endsWith('index.html') || e.request.url.endsWith('/brotherboard/')) {
+    // Network-first for HTML
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(cache => cache.put(e.request, copy));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+  } else {
+    // Cache-first for everything else (icons, manifest)
+    e.respondWith(
+      caches.match(e.request).then(cached => cached || fetch(e.request))
+    );
+  }
 });
