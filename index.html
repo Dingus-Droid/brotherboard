@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>RSVP4Dingus</title>
 
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="theme-color" content="#ffffff" />
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1649,6 +1654,12 @@
     SettingsSheet.init();
     Reader.init();
     HyphenReview.init();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>
