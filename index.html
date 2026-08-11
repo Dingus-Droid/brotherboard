@@ -589,27 +589,21 @@
         <!-- Input controls below textarea -->
         <div class="input-controls">
   <div class="btnwrap">
-    <button id="selectAllBtn" type="button">Select All</button>
-    <button class="info" type="button" aria-label="Select All info">!
-      <span class="info-tip">Selects all text in the box.</span>
+    <button id="clearAllBtn" type="button">Clear</button>
+    <button class="info" type="button" aria-label="Clear info">!
+      <span class="info-tip">Clears the selected text, or the whole box if nothing is selected.</span>
     </button>
   </div>
   <div class="btnwrap">
-    <button id="clearAllBtn" type="button">Clear All</button>
-    <button class="info" type="button" aria-label="Clear All info">!
-      <span class="info-tip">Selects all text, then clears it.</span>
+    <button id="pasteAllBtn" type="button">Paste</button>
+    <button class="info" type="button" aria-label="Paste info">!
+      <span class="info-tip">Replaces the selected text with clipboard contents, or the whole box if nothing is selected.</span>
     </button>
   </div>
   <div class="btnwrap">
-    <button id="pasteAllBtn" type="button">Paste All</button>
-    <button class="info" type="button" aria-label="Paste All info">!
-      <span class="info-tip">Replaces the entire text with clipboard contents.</span>
-    </button>
-  </div>
-  <div class="btnwrap">
-    <button id="copyAllBtn" type="button">Copy All</button>
-    <button class="info" type="button" aria-label="Copy All info">!
-      <span class="info-tip">Copies the entire text to the clipboard.</span>
+    <button id="copyAllBtn" type="button">Copy</button>
+    <button class="info" type="button" aria-label="Copy info">!
+      <span class="info-tip">Copies the selected text, or the whole box if nothing is selected.</span>
     </button>
   </div>
   <div class="btnwrap">
@@ -976,7 +970,6 @@
 
         toggleHighlight: $("toggleHighlight"),
 
-        selectAllBtn: $("selectAllBtn"),
         wordSelectBtn: $("wordSelectBtn"),
         clearAllBtn: $("clearAllBtn"),
         pasteAllBtn: $("pasteAllBtn"),
@@ -991,6 +984,7 @@
       let centerOffset = 0;
       let highlightOn = false;
       let wordSelectArmed = false;
+      let appOwnsSelection = false;
 
       let mirror = null;
       const ensureMirror = () => {
@@ -1070,13 +1064,24 @@
         els.input.scrollTop = target;
       };
 
+      /* Tracks whether the current textarea selection was made by the app
+         (Highlighter / Word Select) or by the user, so Clear/Copy/Paste can
+         tell a real user selection apart from the highlighter's own. */
+      const setAppSelection = (start, end) => {
+        appOwnsSelection = true;
+        els.input.setSelectionRange(start, end);
+      };
+
+      const hasUserSelection = () =>
+        !appOwnsSelection && els.input.selectionStart !== els.input.selectionEnd;
+
       const applyHighlight = () => {
         if (!highlightOn) return;
         if (!spans.length || !spans[index]) return;
 
         const { start, end } = spans[index];
         els.input.focus({ preventScroll: true });
-        els.input.setSelectionRange(start, end);
+        setAppSelection(start, end);
         scrollToSelection(start, end);
       };
 
@@ -1208,7 +1213,7 @@
         if (found === -1) return;
 
         const { start, end } = spans[found];
-        els.input.setSelectionRange(start, end);
+        setAppSelection(start, end);
         scrollToSelection(start, end);
 
         index = found;
@@ -1241,16 +1246,19 @@
           e.preventDefault();
           stop();
         }, { capture: true });
-        /* Select All button */
-        els.selectAllBtn.addEventListener("click", () => {
-          els.input.readOnly = false;
-          els.input.focus({ preventScroll: true });
-          requestAnimationFrame(() => els.input.select());
-        });
+        /* A real user selection (drag, shift+arrows, etc.) always takes
+           ownership back from the app; Highlighter/Word Select reclaim it
+           the next time they move the selection themselves. */
+        els.input.addEventListener("mouseup", () => { appOwnsSelection = false; });
+        els.input.addEventListener("keyup", () => { appOwnsSelection = false; });
 
-        /* Copy All button */
+        /* Copy button: copies the selection if you have one, else the whole box */
         els.copyAllBtn.addEventListener("click", async () => {
-          const txt = els.input.value ?? "";
+          const useSelection = hasUserSelection();
+          const start = useSelection ? els.input.selectionStart : 0;
+          const end = useSelection ? els.input.selectionEnd : els.input.value.length;
+          const txt = els.input.value.slice(start, end);
+
           try {
             await navigator.clipboard.writeText(txt);
           } catch (err) {
@@ -1258,25 +1266,37 @@
             els.input.readOnly = false;
             els.input.focus({ preventScroll: true });
             requestAnimationFrame(() => {
-              els.input.select();
+              els.input.setSelectionRange(start, end);
               try { document.execCommand('copy'); } catch (_) {}
               els.input.setSelectionRange(0, 0);
             });
           }
         });
 
-        /* Paste All button */
+        /* Paste button: replaces the selection if you have one, else the whole box */
         els.pasteAllBtn.addEventListener("click", async () => {
+          const useSelection = hasUserSelection();
+          const selStart = els.input.selectionStart;
+          const selEnd = els.input.selectionEnd;
+
           try {
             const clip = await navigator.clipboard.readText();
             els.input.readOnly = false;
             els.input.focus({ preventScroll: true });
             requestAnimationFrame(() => {
-              els.input.select();
-              els.input.value = clip ?? "";
-              els.input.scrollTop = 0;
               stop();
-              index = 0;
+              if (useSelection) {
+                const inserted = clip ?? "";
+                els.input.value =
+                  els.input.value.slice(0, selStart) + inserted + els.input.value.slice(selEnd);
+                const caret = selStart + inserted.length;
+                els.input.setSelectionRange(caret, caret);
+              } else {
+                els.input.select();
+                els.input.value = clip ?? "";
+                els.input.scrollTop = 0;
+                index = 0;
+              }
               rebuild();
               Placeholder.sync();
               render();
@@ -1288,18 +1308,27 @@
           }
         });
 
-        /* Clear All button */
+        /* Clear button: deletes the selection if you have one, else the whole box */
         els.clearAllBtn.addEventListener("click", () => {
+          const useSelection = hasUserSelection();
+          const selStart = els.input.selectionStart;
+          const selEnd = els.input.selectionEnd;
+
           els.input.readOnly = false;
           els.input.focus({ preventScroll: true });
           requestAnimationFrame(() => {
-            els.input.select();
-            els.input.value = "";
-            els.input.scrollTop = 0;
             stop();
-            index = 0;
-            spans = [];
-            words = [];
+            if (useSelection) {
+              els.input.value = els.input.value.slice(0, selStart) + els.input.value.slice(selEnd);
+              els.input.setSelectionRange(selStart, selStart);
+              rebuild();
+            } else {
+              els.input.value = "";
+              els.input.scrollTop = 0;
+              index = 0;
+              spans = [];
+              words = [];
+            }
             Placeholder.sync();
             render();
           });
