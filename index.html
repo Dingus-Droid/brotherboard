@@ -41,12 +41,12 @@
     textarea::selection { background: var(--fg); color: var(--bg); }
     textarea::-moz-selection { background: var(--fg); color: var(--bg); }
 
-    /* ===== GRID: 20% / 30% / 50% ===== */
+    /* ===== GRID ===== */
     .app {
       height: 100%;
       width: 100%;
       display: grid;
-      grid-template-rows: 40fr 40fr 20fr;
+      grid-template-rows: 40fr 44fr 16fr;
       background: var(--bg);
       color: var(--fg);
     }
@@ -215,7 +215,7 @@
     }
 
     .progress-line {
-      font-size: 16px;
+      font-size: clamp(14px, 4vw, 20px);
       font-weight: 500;
       text-align: center;
       padding: 0 14px;
@@ -490,16 +490,29 @@
     input[type="checkbox"] { accent-color: var(--fg); }
 
     /* ===== INFO ICONS (circled ! with popover) ===== */
+    /* Self-contained (not relying on the generic `button{}` tag rule) since
+       an .info that needs to hold interactive controls has to be a <span
+       role="button"> instead of a real <button> — a <button> can't legally
+       contain another <button>, and browsers silently break that markup. */
     .info {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       width: 22px;
       height: 22px;
       padding: 0;
+      border: var(--ctrl-b) solid var(--fg);
       border-radius: 999px;
+      background: var(--bg);
+      color: var(--fg);
       font-weight: 800;
       font-size: 13px;
       line-height: 1;
       position: relative;
       flex: 0 0 auto;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
     }
 
     .info-tip {
@@ -570,8 +583,41 @@
     .settings-body > .center-group {
       margin-bottom: 18px;
     }
-    .settings-body > .line {
-      margin-top: 4px;
+
+    /* ===== EMBEDDED CONTROLS INSIDE INFO POPOVERS ===== */
+    .info-tip-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .info-tip-label {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .info-tip-stepper button {
+      width: 32px;
+      height: 32px;
+      font-size: 13px;
+    }
+
+    .info-tip-stepper input[type="number"] {
+      width: 72px;
+      height: 32px;
+      font-size: 13px;
+    }
+
+    .info-tip-checkbox {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 10px;
+      font-size: 12px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -613,6 +659,11 @@
     </button>
   </div>
 </div>
+        <div class="input-controls">
+          <button id="play">Play</button>
+          <button id="pause">Pause</button>
+          <button id="reset">Reset</button>
+        </div>
       </div>
     </div>
 
@@ -623,17 +674,10 @@
       </div>
     </div>
 
-    <!-- 50%: Bottom -->
+    <!-- Bottom: progress line only -->
     <div class="section">
       <div class="bottom">
-        <!-- Progress line above controls -->
         <div id="progressTime" class="progress-line"></div>
-
-        <div class="line">
-          <button id="play">Play</button>
-          <button id="pause">Pause</button>
-          <button id="reset">Reset</button>
-        </div>
       </div>
     </div>
   </div>
@@ -657,29 +701,62 @@
           </div>
         </div>
 
-        <!-- Fix Hyphens + Highlighter -->
-        <div class="line">
-          <div class="btnwrap">
-            <button id="fixHyphens">Fix Hyphens</button>
-            <button class="info" type="button" aria-label="Fix Hyphens info">!
-              <span class="info-tip">Review and replace hyphen-like cases (line-break pairs and inline hyphens).</span>
-            </button>
-          </div>
-          <div class="btnwrap">
-            <button id="toggleHighlight" type="button">Highlighter: Off</button>
-            <button class="info" type="button" aria-label="Highlighter info">!
-              <span class="info-tip">Highlights the current word in the textarea while playing.</span>
-            </button>
-          </div>
-        </div>
         <div class="settings">
+          <!-- Fix Hyphens + Highlighter -->
+          <div class="line">
+            <div class="btnwrap">
+              <button id="fixHyphens">Fix Hyphens</button>
+              <button class="info" type="button" aria-label="Fix Hyphens info">!
+                <span class="info-tip">Review and replace hyphen-like cases (line-break pairs and inline hyphens).</span>
+              </button>
+            </div>
+            <div class="btnwrap">
+              <button id="toggleHighlight" type="button">Highlighter: Off</button>
+              <button class="info" type="button" aria-label="Highlighter info">!
+                <span class="info-tip">Highlights the current word in the textarea while playing.</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="blocks-row">
+            <div class="block">
+              <div class="block-title">
+                Words per Flash
+                <span class="info" role="button" tabindex="0" aria-label="Words per Flash info">!
+                  <span class="info-tip">
+                    How many words are shown at once. Reading speed (WPM) stays word-based, so more words per flash means each flash lasts proportionally longer.
+                    <label class="info-tip-checkbox">
+                      <input type="checkbox" id="stopAtSentenceBreaks">
+                      Stop at sentence breaks
+                    </label>
+                  </span>
+                </span>
+              </div>
+              <div class="stepper">
+                <button id="wordsPerFlashDec" type="button" aria-label="Decrease words per flash">−</button>
+                <input id="wordsPerFlash" type="number" min="1" max="6" step="1" inputmode="numeric">
+                <button id="wordsPerFlashInc" type="button" aria-label="Increase words per flash">+</button>
+              </div>
+            </div>
+          </div>
+
           <div class="blocks-row">
             <div class="block">
               <div class="block-title">
                 Long Words
-                <button class="info" type="button" aria-label="Long Words info">!
-                  <span class="info-tip">Extra delay per character past 6 (letters/digits only).</span>
-                </button>
+                <span class="info" role="button" tabindex="0" aria-label="Long Words info">!
+                  <span class="info-tip">
+                    Extra delay per character past this many letters or digits.
+                    <div class="info-tip-row">
+                      <span class="info-tip-label">Starts after:</span>
+                      <div class="stepper info-tip-stepper">
+                        <button id="longThreshDec" type="button" aria-label="Decrease long word start length">−</button>
+                        <input id="longThreshold" type="number" min="1" max="20" step="1" inputmode="numeric">
+                        <button id="longThreshInc" type="button" aria-label="Increase long word start length">+</button>
+                      </div>
+                    </div>
+                  </span>
+                </span>
               </div>
               <div class="stepper">
                 <button id="longDec" type="button" aria-label="Decrease long words slowdown">−</button>
@@ -886,6 +963,24 @@
             closeAll();
             if (willOpen) btn.classList.add("open");
           });
+
+          /* Info triggers that hold embedded controls are <span role="button">
+             (not a real <button>, which can't legally contain another
+             <button>) — restore Enter/Space activation by hand. */
+          if (btn.tagName !== "BUTTON") {
+            btn.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+                e.preventDefault();
+                btn.click();
+              }
+            });
+          }
+        });
+
+        /* Any controls embedded inside an info popover (steppers, checkboxes)
+           shouldn't close the popover when interacted with. */
+        document.querySelectorAll(".info-tip").forEach(tip => {
+          tip.addEventListener("click", (e) => e.stopPropagation());
         });
 
         document.addEventListener("click", closeAll);
@@ -938,7 +1033,6 @@
     const Reader = (() => {
       const SAFETY = 1;
       const NUDGE = 2;
-      const LEN_THRESHOLD = 6;
 
       const els = {
         stage: $("stage"),
@@ -967,6 +1061,15 @@
         longInc: $("longInc"),
         puncDec: $("puncDec"),
         puncInc: $("puncInc"),
+
+        longThreshold: $("longThreshold"),
+        longThreshDec: $("longThreshDec"),
+        longThreshInc: $("longThreshInc"),
+
+        wordsPerFlash: $("wordsPerFlash"),
+        wordsPerFlashDec: $("wordsPerFlashDec"),
+        wordsPerFlashInc: $("wordsPerFlashInc"),
+        stopAtSentenceBreaks: $("stopAtSentenceBreaks"),
 
         toggleHighlight: $("toggleHighlight"),
 
@@ -1075,11 +1178,30 @@
       const hasUserSelection = () =>
         !appOwnsSelection && els.input.selectionStart !== els.input.selectionEnd;
 
+      /* A word "ends a sentence" if it finishes with ./!/? (optionally
+         followed by a closing quote or bracket). Used by "Words per Flash"
+         to optionally stop a group short instead of always showing the
+         full chosen count. */
+      const endsSentence = (w) => /[.!?]["')\]]*$/.test(w || "");
+
+      const computeGroupEnd = (startIndex) => {
+        const size = Math.max(1, Number(els.wordsPerFlash.value) || 1);
+        let end = Math.min(words.length, startIndex + size);
+        if (els.stopAtSentenceBreaks.checked) {
+          for (let i = startIndex; i < end; i++) {
+            if (endsSentence(words[i])) { end = i + 1; break; }
+          }
+        }
+        return end;
+      };
+
       const applyHighlight = () => {
         if (!highlightOn) return;
         if (!spans.length || !spans[index]) return;
 
-        const { start, end } = spans[index];
+        const groupEnd = computeGroupEnd(index);
+        const start = spans[index].start;
+        const end = spans[groupEnd - 1].end;
         els.input.focus({ preventScroll: true });
         setAppSelection(start, end);
         scrollToSelection(start, end);
@@ -1095,15 +1217,17 @@
         const wpm = Number(els.wpm.value) || 150;
         const desired = Number(els.size.value) || 48;
 
-        els.word.textContent = words[index];
+        const groupEnd = computeGroupEnd(index);
+        els.word.textContent = words.slice(index, groupEnd).join(" ");
         els.word.style.transform = `translateX(${centerOffset}px)`;
         els.word.style.fontSize = clampFontSize(desired) + "px";
 
         const total = Math.ceil((words.length / wpm) * 60);
         const remaining = Math.ceil(((words.length - index) / wpm) * 60);
 
+        const label = groupEnd - index > 1 ? `Words ${index + 1}–${groupEnd}` : `Word ${index + 1}`;
         els.progressTime.textContent =
-          `Word ${index + 1} of ${words.length} — ${formatTime(remaining)} remaining / ${formatTime(total)} total`;
+          `${label} of ${words.length} — ${formatTime(remaining)} remaining / ${formatTime(total)} total`;
 
         if (playing && highlightOn) applyHighlight();
       };
@@ -1145,7 +1269,8 @@
 
         const len = wordLength(w);
         const perCharMs = toMs(els.longSlow.value);
-        const extraChars = Math.max(0, len - LEN_THRESHOLD);
+        const threshold = Math.max(0, Number(els.longThreshold.value) || 6);
+        const extraChars = Math.max(0, len - threshold);
         const longExtra = extraChars * perCharMs;
 
         const perPuncMs = toMs(els.puncSlow.value);
@@ -1160,12 +1285,14 @@
 
         if (!playing || !words.length) return;
 
-        const delay = wordDelayMs(words[index] || "");
+        const groupEnd = computeGroupEnd(index);
+        let delay = 0;
+        for (let i = index; i < groupEnd; i++) delay += wordDelayMs(words[i]);
 
         timeoutId = setTimeout(() => {
           if (!playing) return;
-          if (index < words.length - 1) {
-            index++;
+          if (groupEnd < words.length) {
+            index = groupEnd;
             render();
             scheduleNext();
           } else {
@@ -1228,6 +1355,10 @@
         els.puncSlow.value = localStorage.getItem("puncSlow") ?? "0.10";
         enforceSecsFormat(els.longSlow);
         enforceSecsFormat(els.puncSlow);
+
+        els.longThreshold.value = localStorage.getItem("longThreshold") ?? 6;
+        els.wordsPerFlash.value = localStorage.getItem("wordsPerFlash") ?? 1;
+        els.stopAtSentenceBreaks.checked = (localStorage.getItem("stopAtSentenceBreaks") ?? "0") === "1";
 
         centerOffset = Number(localStorage.getItem("centerOffset") ?? 0);
         els.centerVal.textContent = centerOffset + "px";
@@ -1346,8 +1477,8 @@
           requestAnimationFrame(selectTokenAtCaret);
         });
 
-        /* Keep textarea focused while still allowing bottom button clicks */
-        document.querySelectorAll(".bottom button").forEach((btn) => {
+        /* Keep textarea focused while still allowing playback button clicks */
+        [els.play, els.pause, els.reset].forEach((btn) => {
           btn.addEventListener("mousedown", (e) => e.preventDefault());
         });
 
@@ -1400,6 +1531,24 @@
           if (playing) scheduleNext();
         });
 
+        els.longThreshold.addEventListener("input", () => {
+          localStorage.setItem("longThreshold", els.longThreshold.value);
+          if (playing) scheduleNext();
+          render();
+        });
+
+        els.wordsPerFlash.addEventListener("input", () => {
+          localStorage.setItem("wordsPerFlash", els.wordsPerFlash.value);
+          if (playing) scheduleNext();
+          render();
+        });
+
+        els.stopAtSentenceBreaks.addEventListener("change", () => {
+          localStorage.setItem("stopAtSentenceBreaks", els.stopAtSentenceBreaks.checked ? "1" : "0");
+          if (playing) scheduleNext();
+          render();
+        });
+
         els.wpmDec.addEventListener("click", () => bumpNumber(els.wpm, -1));
         els.wpmInc.addEventListener("click", () => bumpNumber(els.wpm, +1));
         els.sizeDec.addEventListener("click", () => bumpNumber(els.size, -1));
@@ -1409,6 +1558,11 @@
         els.longInc.addEventListener("click", () => bumpNumber(els.longSlow, +1));
         els.puncDec.addEventListener("click", () => bumpNumber(els.puncSlow, -1));
         els.puncInc.addEventListener("click", () => bumpNumber(els.puncSlow, +1));
+
+        els.longThreshDec.addEventListener("click", () => bumpNumber(els.longThreshold, -1));
+        els.longThreshInc.addEventListener("click", () => bumpNumber(els.longThreshold, +1));
+        els.wordsPerFlashDec.addEventListener("click", () => bumpNumber(els.wordsPerFlash, -1));
+        els.wordsPerFlashInc.addEventListener("click", () => bumpNumber(els.wordsPerFlash, +1));
 
         els.left.addEventListener("click", () => {
           centerOffset -= NUDGE;
