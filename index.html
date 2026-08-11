@@ -203,7 +203,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 28px;
+      gap: 16px;
     }
 
     .center-label {
@@ -292,7 +292,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 28px;
+      gap: 16px;
       min-width: 190px;
     }
 
@@ -557,17 +557,6 @@
       pointer-events: auto;
     }
 
-    /* Every positioned .info badge (below) sets its own z-index, which makes
-       it its own stacking context — so two badges at the same resting
-       z-index are ordered by DOM position, not by which one is actually
-       open. That let a later badge (e.g. WPM) paint over an earlier one's
-       open popover (e.g. Long Words) regardless of the tip's own z-index.
-       Forcing the open badge's z-index far above any resting badge fixes
-       it for every info popover, regardless of layout order. */
-    .info.open {
-      z-index: 9999;
-    }
-
     /* ===== NESTED INFO BADGE (split on border line) ===== */
     .btnwrap { position: relative; display: inline-flex; }
     /* place badge on the top border line of the wrapped control (half out / half in) */
@@ -584,12 +573,30 @@
     .center-label .info, .block-title .info {
       position: absolute;
       left: 50%;
-      /* Centered in the (now-widened) gap between the label and its control,
-         so the 22px badge has clearance on both sides instead of overlapping
-         the label text above or the control's value below. */
-      top: calc(100% + 14px);
+      /* Centered in the gap between the label and its control, with just
+         enough room (see .block/.center-group gap below) for the 22px badge
+         to clear both the label text above and the control's value below. */
+      top: calc(100% + 16px);
       transform: translate(-50%, -50%);
       z-index: 6;
+    }
+
+    /* Every positioned .info badge above sets its own z-index, which makes
+       it its own stacking context — so two badges at the same resting
+       z-index paint in DOM order, not by which one is actually open. That
+       let a later badge (e.g. WPM) paint over an earlier one's open
+       popover (e.g. Long Words) regardless of the tip's own z-index.
+       These selectors match the exact same badges as the three rules
+       above but with one extra class each, giving them higher specificity
+       so the open state always wins the stacking comparison no matter
+       where either rule is declared. (A bare ".info.open { z-index: ... }"
+       rule looks like it should do this too, but ties on specificity with
+       the rules above and loses if declared earlier in the file — this
+       form can't lose that tie.) */
+    .btnwrap .info.open,
+    .center-label .info.open,
+    .block-title .info.open {
+      z-index: 9999;
     }
 
 
