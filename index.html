@@ -203,7 +203,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 28px;
     }
 
     .center-label {
@@ -292,7 +292,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 28px;
       min-width: 190px;
     }
 
@@ -584,8 +584,10 @@
     .center-label .info, .block-title .info {
       position: absolute;
       left: 50%;
-      /* put the badge below the label, close to the control line; avoids covering label text */
-      top: calc(100% + 11px);
+      /* Centered in the (now-widened) gap between the label and its control,
+         so the 22px badge has clearance on both sides instead of overlapping
+         the label text above or the control's value below. */
+      top: calc(100% + 14px);
       transform: translate(-50%, -50%);
       z-index: 6;
     }
@@ -835,6 +837,16 @@
           </div>
 
           <div class="blocks-row">
+            <div class="block" style="min-width:160px">
+              <div class="block-title">
+                Background
+                <span class="info" role="button" tabindex="0" aria-label="Background info">!
+                  <span class="info-tip">Change app background color.</span>
+                </span>
+              </div>
+              <input id="bgColor" type="color" aria-label="Background color">
+            </div>
+
             <div class="block">
               <div class="block-title">
                 Word size
@@ -847,16 +859,6 @@
                 <input id="wordSize" type="number" min="16" max="240" step="6" inputmode="numeric">
                 <button id="sizeInc" type="button" aria-label="Increase word size">+</button>
               </div>
-            </div>
-
-            <div class="block" style="min-width:160px">
-              <div class="block-title">
-                Background
-                <span class="info" role="button" tabindex="0" aria-label="Background info">!
-                  <span class="info-tip">Change app background color.</span>
-                </span>
-              </div>
-              <input id="bgColor" type="color" aria-label="Background color">
             </div>
 
             <div class="block" style="min-width:160px">
