@@ -46,7 +46,18 @@
       height: 100%;
       width: 100%;
       display: grid;
-      grid-template-rows: 40fr 44fr 16fr;
+      /* Each row keeps its usual proportion when there's room, but won't
+         shrink past a usable floor -- notably the word-display row, which
+         is the actual reading feature and would otherwise be squeezed
+         toward invisibility before the page ever triggers the scroll
+         fallback below. Past these floors the grid needs more height than
+         it's given, and .app's own overflow-y:auto (not html/body's --
+         nesting two independent scroll containers is asking for trouble
+         on mobile Safari) turns that into a scrollbar instead of the
+         content being silently clipped and unreachable. */
+      grid-template-rows: minmax(200px, 40fr) minmax(100px, 44fr) minmax(40px, 16fr);
+      overflow-x: hidden;
+      overflow-y: auto;
       background: var(--bg);
       color: var(--fg);
     }
