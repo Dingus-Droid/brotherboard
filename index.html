@@ -320,10 +320,11 @@
     }
 
     input[type="number"] {
-      width: 112px;
+      width: 70px;
       height: var(--ctrl-h);
-      padding: 0 10px;
+      padding: 0 8px;
       font-size: var(--ctrl-fs);
+      text-align: center;
       background: var(--bg);
       color: var(--fg);
       border: var(--ctrl-b) solid var(--fg);
@@ -556,6 +557,17 @@
       pointer-events: auto;
     }
 
+    /* Every positioned .info badge (below) sets its own z-index, which makes
+       it its own stacking context — so two badges at the same resting
+       z-index are ordered by DOM position, not by which one is actually
+       open. That let a later badge (e.g. WPM) paint over an earlier one's
+       open popover (e.g. Long Words) regardless of the tip's own z-index.
+       Forcing the open badge's z-index far above any resting badge fixes
+       it for every info popover, regardless of layout order. */
+    .info.open {
+      z-index: 9999;
+    }
+
     /* ===== NESTED INFO BADGE (split on border line) ===== */
     .btnwrap { position: relative; display: inline-flex; }
     /* place badge on the top border line of the wrapped control (half out / half in) */
@@ -618,6 +630,23 @@
       margin-top: 10px;
       font-size: 12px;
       cursor: pointer;
+    }
+
+    .info-tip-punc-grid {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      gap: 6px 16px;
+      justify-content: center;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .info-tip-punc-grid label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -721,10 +750,24 @@
           <div class="blocks-row">
             <div class="block">
               <div class="block-title">
-                Words per Flash
-                <span class="info" role="button" tabindex="0" aria-label="Words per Flash info">!
+                WPM
+                <span class="info" role="button" tabindex="0" aria-label="WPM info">!
+                  <span class="info-tip">Words Per Minute — base reading speed.</span>
+                </span>
+              </div>
+              <div class="stepper">
+                <button id="wpmDec" type="button" aria-label="Decrease WPM">−</button>
+                <input id="wpm" type="number" min="50" max="1000" step="10" inputmode="numeric">
+                <button id="wpmInc" type="button" aria-label="Increase WPM">+</button>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="block-title">
+                WPF
+                <span class="info" role="button" tabindex="0" aria-label="WPF info">!
                   <span class="info-tip">
-                    How many words are shown at once. Reading speed (WPM) stays word-based, so more words per flash means each flash lasts proportionally longer.
+                    Words Per Flash — how many words are shown at once. Reading speed (WPM) stays word-based, so more words per flash means each flash lasts proportionally longer.
                     <label class="info-tip-checkbox">
                       <input type="checkbox" id="stopAtSentenceBreaks">
                       Stop at sentence breaks
@@ -768,9 +811,20 @@
             <div class="block">
               <div class="block-title">
                 Punctuation
-                <button class="info" type="button" aria-label="Punctuation info">!
-                  <span class="info-tip">Extra delay per punctuation character anywhere in the token.</span>
-                </button>
+                <span class="info" role="button" tabindex="0" aria-label="Punctuation info">!
+                  <span class="info-tip">
+                    Extra delay per punctuation character anywhere in the token.
+                    <div class="info-tip-punc-grid">
+                      <label><input type="checkbox" class="puncMark" value="." checked> Period .</label>
+                      <label><input type="checkbox" class="puncMark" value="," checked> Comma ,</label>
+                      <label><input type="checkbox" class="puncMark" value="?" checked> Question ?</label>
+                      <label><input type="checkbox" class="puncMark" value="!" checked> Exclamation !</label>
+                      <label><input type="checkbox" class="puncMark" value="'" checked> Apostrophe '</label>
+                      <label><input type="checkbox" class="puncMark" value=";" checked> Semicolon ;</label>
+                      <label><input type="checkbox" class="puncMark" value=":" checked> Colon :</label>
+                    </div>
+                  </span>
+                </span>
               </div>
               <div class="stepper">
                 <button id="puncDec" type="button" aria-label="Decrease punctuation slowdown">−</button>
@@ -783,24 +837,10 @@
           <div class="blocks-row">
             <div class="block">
               <div class="block-title">
-                WPM
-                <button class="info" type="button" aria-label="WPM info">!
-                  <span class="info-tip">Base reading speed.</span>
-                </button>
-              </div>
-              <div class="stepper">
-                <button id="wpmDec" type="button" aria-label="Decrease WPM">−</button>
-                <input id="wpm" type="number" min="50" max="1000" step="10" inputmode="numeric">
-                <button id="wpmInc" type="button" aria-label="Increase WPM">+</button>
-              </div>
-            </div>
-
-            <div class="block">
-              <div class="block-title">
                 Word size
-                <button class="info" type="button" aria-label="Word size info">!
+                <span class="info" role="button" tabindex="0" aria-label="Word size info">!
                   <span class="info-tip">Maximum display font size (auto-fit).</span>
-                </button>
+                </span>
               </div>
               <div class="stepper">
                 <button id="sizeDec" type="button" aria-label="Decrease word size">−</button>
@@ -808,15 +848,13 @@
                 <button id="sizeInc" type="button" aria-label="Increase word size">+</button>
               </div>
             </div>
-          </div>
 
-          <div class="blocks-row">
             <div class="block" style="min-width:160px">
               <div class="block-title">
                 Background
-                <button class="info" type="button" aria-label="Background info">!
+                <span class="info" role="button" tabindex="0" aria-label="Background info">!
                   <span class="info-tip">Change app background color.</span>
-                </button>
+                </span>
               </div>
               <input id="bgColor" type="color" aria-label="Background color">
             </div>
@@ -824,9 +862,9 @@
             <div class="block" style="min-width:160px">
               <div class="block-title">
                 Content
-                <button class="info" type="button" aria-label="Content info">!
+                <span class="info" role="button" tabindex="0" aria-label="Content info">!
                   <span class="info-tip">Change text/UI color.</span>
-                </button>
+                </span>
               </div>
               <input id="fgColor" type="color" aria-label="Content color">
             </div>
@@ -1089,6 +1127,9 @@
       let wordSelectArmed = false;
       let appOwnsSelection = false;
 
+      const PUNC_TRACKED = [".", ",", "?", "!", "'", ";", ":"];
+      let puncEnabled = new Set(PUNC_TRACKED);
+
       let mirror = null;
       const ensureMirror = () => {
         if (mirror) return mirror;
@@ -1259,7 +1300,11 @@
         if (!token) return 0;
         let count = 0;
         for (const ch of token) {
-          if (!/[\p{L}\p{N}]/u.test(ch)) count += 1;
+          if (/[\p{L}\p{N}]/u.test(ch)) continue;
+          // A mark with its own checkbox only counts when that box is
+          // checked; anything not in the checkbox list always counts.
+          if (PUNC_TRACKED.includes(ch) && !puncEnabled.has(ch)) continue;
+          count += 1;
         }
         return count;
       };
@@ -1359,6 +1404,19 @@
         els.longThreshold.value = localStorage.getItem("longThreshold") ?? 6;
         els.wordsPerFlash.value = localStorage.getItem("wordsPerFlash") ?? 1;
         els.stopAtSentenceBreaks.checked = (localStorage.getItem("stopAtSentenceBreaks") ?? "0") === "1";
+
+        const savedPunc = localStorage.getItem("puncEnabledMarks");
+        puncEnabled = new Set(savedPunc !== null ? savedPunc.split("") : PUNC_TRACKED);
+        document.querySelectorAll(".puncMark").forEach((cb) => {
+          cb.checked = puncEnabled.has(cb.value);
+          cb.addEventListener("change", () => {
+            if (cb.checked) puncEnabled.add(cb.value);
+            else puncEnabled.delete(cb.value);
+            localStorage.setItem("puncEnabledMarks", PUNC_TRACKED.filter((ch) => puncEnabled.has(ch)).join(""));
+            if (playing) scheduleNext();
+            render();
+          });
+        });
 
         centerOffset = Number(localStorage.getItem("centerOffset") ?? 0);
         els.centerVal.textContent = centerOffset + "px";
