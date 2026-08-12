@@ -183,13 +183,13 @@
 
     .settings-sheet {
       position: fixed;
-      left: 50%;
-      right: auto;
+      left: var(--frame-margin);
+      right: var(--frame-margin);
       bottom: 0;
-      width: 90%;
+      width: auto;
       height: min(52dvh, 560px);
       max-height: calc(100dvh - 12px);
-      transform: translate(-50%, calc(100% - var(--sheet-peek) - env(safe-area-inset-bottom, 0px)));
+      transform: translateY(calc(100% - var(--sheet-peek) - env(safe-area-inset-bottom, 0px)));
       transition: transform 0.22s ease;
       background: var(--bg);
       color: var(--fg);
@@ -205,11 +205,11 @@
       background-clip: padding-box;
     }
 
-    .settings-sheet.open { transform: translate(-50%, 0); }
+    .settings-sheet.open { transform: translateY(0); }
 
     .settings-handle {
       padding: 10px 14px calc(22px + env(safe-area-inset-bottom, 0px));
-      border-bottom: var(--ctrl-b) solid var(--fg);
+      border-bottom: none;
       background: var(--bg);
       border-top-left-radius: inherit;
       border-top-right-radius: inherit;
