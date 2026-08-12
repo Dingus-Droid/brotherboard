@@ -2078,7 +2078,12 @@
       };
 
       const init = () => {
-        els.now.addEventListener("click", showStepsView);
+        els.now.addEventListener("click", () => {
+          // Assume anyone clicking Install Now actually follows through --
+          // same effect as Never, so it doesn't keep nagging afterward.
+          localStorage.setItem(KEY, "never");
+          showStepsView();
+        });
         els.later.addEventListener("click", close);
         els.never.addEventListener("click", () => {
           localStorage.setItem(KEY, "never");
