@@ -258,7 +258,7 @@
     }
 
     /* Make arrow buttons match the same square footprint */
-    #left, #right {
+    #left, #right, #prevWord, #nextWord {
       width: var(--ctrl-h);
       padding: 0;
       font-size: var(--ctrl-fs);
@@ -704,14 +704,17 @@
   <div class="btnwrap">
     <button id="wordSelectBtn" type="button" aria-pressed="false">Word Select</button>
     <button class="info" type="button" aria-label="Word Select info">!
-      <span class="info-tip">Tap a word in the text box to jump the reader there (stays on until turned off or Play).</span>
+      <span class="info-tip">Tap a word in the text box to jump the reader there (stays on until turned off or Play/Pause).</span>
     </button>
   </div>
 </div>
         <div class="input-controls">
-          <button id="play">Play</button>
-          <button id="pause">Pause</button>
-          <button id="reset">Reset</button>
+          <button id="prevWord" type="button" aria-label="Back one word">&lt;</button>
+          <button id="playPause" type="button">Play/Pause</button>
+          <button id="nextWord" type="button" aria-label="Forward one word">&gt;</button>
+        </div>
+        <div class="input-controls">
+          <button id="reset" type="button">Reset</button>
         </div>
       </div>
     </div>
@@ -1104,8 +1107,9 @@
         left: $("left"),
         right: $("right"),
 
-        play: $("play"),
-        pause: $("pause"),
+        playPause: $("playPause"),
+        prevWord: $("prevWord"),
+        nextWord: $("nextWord"),
         reset: $("reset"),
 
         wpmDec: $("wpmDec"),
@@ -1556,7 +1560,7 @@
         });
 
         /* Keep textarea focused while still allowing playback button clicks */
-        [els.play, els.pause, els.reset].forEach((btn) => {
+        [els.prevWord, els.playPause, els.nextWord, els.reset].forEach((btn) => {
           btn.addEventListener("mousedown", (e) => e.preventDefault());
         });
 
@@ -1663,7 +1667,7 @@
           if (playing && highlightOn) applyHighlight();
         });
 
-        els.play.addEventListener("click", () => {
+        const startPlaying = () => {
           if (playing || !words.length) return;
           SettingsSheet.close();
           els.input.readOnly = true;
@@ -1680,9 +1684,24 @@
           playing = true;
           if (highlightOn) applyHighlight();
           scheduleNext();
+        };
+
+        els.playPause.addEventListener("click", () => {
+          if (playing) stop();
+          else startPlaying();
         });
 
-        els.pause.addEventListener("click", stop);
+        /* Step one word at a time; pauses playback first so it doesn't
+           race with the scheduled auto-advance. */
+        const stepWord = (delta) => {
+          if (!words.length) return;
+          stop();
+          index = Math.min(words.length - 1, Math.max(0, index + delta));
+          render();
+        };
+
+        els.prevWord.addEventListener("click", () => stepWord(-1));
+        els.nextWord.addEventListener("click", () => stepWord(+1));
 
         els.reset.addEventListener("click", () => {
           stop();
