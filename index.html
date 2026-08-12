@@ -307,6 +307,20 @@
       min-width: 174px;
     }
 
+    /* Background/Content: sized to the swatch (44px), not the title text,
+       so the swatch reaches its neighbor at the same true 16px gap every
+       other control uses. The title text is wider than the swatch, so it's
+       allowed to overflow this box horizontally instead of stretching it. */
+    .color-swatch-block {
+      width: 44px;
+      min-width: 44px;
+      flex: 0 0 44px;
+    }
+
+    .color-swatch-block .block-title {
+      white-space: nowrap;
+    }
+
     .block-title {
       font-size: 16px;
       font-weight: 650;
@@ -903,7 +917,7 @@
           </div>
 
           <div class="blocks-row">
-            <div class="block" style="min-width:110px">
+            <div class="block color-swatch-block">
               <div class="block-title">
                 Background
                 <span class="info" role="button" tabindex="0" aria-label="Background info">!
@@ -927,7 +941,7 @@
               </div>
             </div>
 
-            <div class="block" style="min-width:110px">
+            <div class="block color-swatch-block">
               <div class="block-title">
                 Content
                 <span class="info" role="button" tabindex="0" aria-label="Content info">!
