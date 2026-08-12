@@ -34,7 +34,11 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
   const tabs = await chrome.tabs.query({ url: APP_URL_PATTERN });
 
   if (tabs.length > 0) {
-    const tab = tabs[0];
+    // Multiple matches happen when the app is open both as a regular tab
+    // and as an installed desktop app window -- pick whichever one was
+    // actually used most recently instead of an arbitrary match, so text
+    // doesn't land in a window the user isn't looking at.
+    const tab = tabs.reduce((a, b) => (b.lastAccessed ?? 0) > (a.lastAccessed ?? 0) ? b : a);
     let delivered = false;
     try {
       await chrome.tabs.sendMessage(tab.id, { type: "rsvp4dingus-paste", mode, text });
@@ -57,7 +61,10 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
       await chrome.tabs.update(tab.id, { active: true });
     }
     if (tab.windowId != null) {
-      await chrome.windows.update(tab.windowId, { focused: true });
+      // state:"normal" is needed on top of focused:true -- a minimized
+      // window can be marked focused without actually being restored to
+      // the screen, so this forces it back into view too.
+      await chrome.windows.update(tab.windowId, { focused: true, state: "normal" });
     }
   } else {
     const url = APP_BASE_URL + "?text=" + encodeURIComponent(text);
