@@ -72,6 +72,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      /* Without this, a wide unbreakable word (nowrap, large Word Size) in
+         the reading pane can force this grid item -- and the whole grid
+         column, including the input box above it -- wider than the
+         viewport, since flex/grid items default to never shrinking below
+         their content's intrinsic width. min-width:0 lets it shrink past
+         that, so the reading pane's own overflow:hidden + font clamping
+         can do their job instead of the whole layout overflowing. */
+      min-width: 0;
     }
 
     /* Input box and reading pane get an identical inset on all four sides
