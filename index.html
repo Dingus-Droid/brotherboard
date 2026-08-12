@@ -704,17 +704,37 @@
   <div class="btnwrap">
     <button id="wordSelectBtn" type="button" aria-pressed="false">Word Select</button>
     <button class="info" type="button" aria-label="Word Select info">!
-      <span class="info-tip">Tap a word in the text box to jump the reader there (stays on until turned off or Play/Pause).</span>
+      <span class="info-tip">Tap a word in the text box to jump the reader there. Turns off automatically after you tap a word (or if you press Play/Pause first).</span>
     </button>
   </div>
 </div>
         <div class="input-controls">
-          <button id="prevWord" type="button" aria-label="Back one word">&lt;</button>
-          <button id="playPause" type="button">Play/Pause</button>
-          <button id="nextWord" type="button" aria-label="Forward one word">&gt;</button>
+          <div class="btnwrap">
+            <button id="prevWord" type="button" aria-label="Back one word">&lt;</button>
+            <button class="info" type="button" aria-label="Back one word info">!
+              <span class="info-tip">Steps back one word. Pauses playback first if it's running.</span>
+            </button>
+          </div>
+          <div class="btnwrap">
+            <button id="playPause" type="button">Play/Pause</button>
+            <button class="info" type="button" aria-label="Play/Pause info">!
+              <span class="info-tip">Starts playback, or pauses it if it's already running.</span>
+            </button>
+          </div>
+          <div class="btnwrap">
+            <button id="nextWord" type="button" aria-label="Forward one word">&gt;</button>
+            <button class="info" type="button" aria-label="Forward one word info">!
+              <span class="info-tip">Steps forward one word. Pauses playback first if it's running.</span>
+            </button>
+          </div>
         </div>
         <div class="input-controls">
-          <button id="reset" type="button">Reset</button>
+          <div class="btnwrap">
+            <button id="reset" type="button">Reset</button>
+            <button class="info" type="button" aria-label="Reset info">!
+              <span class="info-tip">Stops playback and returns to the first word.</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1413,6 +1433,8 @@
         scrollToSelection(start, end);
 
         index = found;
+        wordSelectArmed = false;
+        setWordSelectButton();
         render();
       };
 
