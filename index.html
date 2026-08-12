@@ -2032,6 +2032,11 @@
     /* ---------- Paste Helper Extension prompt ---------- */
     const ExtensionPrompt = (() => {
       const KEY = "extensionPromptChoice";
+      // Captured now (module init time), before Reader.init() strips
+      // ?text= from the URL -- if it's present, this tab was just opened
+      // by the extension itself, which is already installed and working,
+      // so don't cover the freshly-pasted text with an install nag.
+      const openedWithStartingText = new URLSearchParams(window.location.search).get("text") !== null;
 
       const els = {
         modal: $("extModal"),
@@ -2090,7 +2095,7 @@
           open();
         });
 
-        if (localStorage.getItem(KEY) !== "never") {
+        if (!openedWithStartingText && localStorage.getItem(KEY) !== "never") {
           open();
         }
       };
