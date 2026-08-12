@@ -130,6 +130,11 @@
       justify-content: center;
       overflow: hidden;
       position: relative;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
     }
 
     .word {
@@ -138,6 +143,18 @@
       line-height: 1;
       will-change: transform, font-size;
       color: var(--fg);
+    }
+
+    .stage-hint {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 10px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--fg);
+      opacity: 0.55;
+      pointer-events: none;
     }
 
     /* ===== BOTTOM SECTION LAYOUT ===== */
@@ -755,9 +772,9 @@
             </button>
           </div>
           <div class="btnwrap">
-            <button id="playPause" type="button">Play/Pause</button>
-            <button class="info" type="button" aria-label="Play/Pause info">!
-              <span class="info-tip">Starts playback, or pauses it if it's already running.</span>
+            <button id="reset" type="button">Reset</button>
+            <button class="info" type="button" aria-label="Reset info">!
+              <span class="info-tip">Stops playback and returns to the first word.</span>
             </button>
           </div>
           <div class="btnwrap">
@@ -767,21 +784,14 @@
             </button>
           </div>
         </div>
-        <div class="input-controls">
-          <div class="btnwrap">
-            <button id="reset" type="button">Reset</button>
-            <button class="info" type="button" aria-label="Reset info">!
-              <span class="info-tip">Stops playback and returns to the first word.</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
     <!-- 30%: Word -->
     <div class="section">
-      <div class="stage" id="stage">
+      <div class="stage" id="stage" role="button" tabindex="0" aria-label="Reading pane. Click to play or pause.">
         <div id="word" class="word"></div>
+        <div id="stageHint" class="stage-hint"></div>
       </div>
     </div>
 
@@ -1199,6 +1209,7 @@
       const els = {
         stage: $("stage"),
         word: $("word"),
+        stageHint: $("stageHint"),
         input: $("textInput"),
         wpm: $("wpm"),
         size: $("wordSize"),
@@ -1208,7 +1219,6 @@
         left: $("left"),
         right: $("right"),
 
-        playPause: $("playPause"),
         prevWord: $("prevWord"),
         nextWord: $("nextWord"),
         reset: $("reset"),
@@ -1398,11 +1408,18 @@
         if (playing && highlightOn) applyHighlight();
       };
 
+      const updateStageHint = () => {
+        const isTouch = window.matchMedia("(pointer: coarse)").matches;
+        const verb = isTouch ? "Tap" : "Click";
+        els.stageHint.textContent = playing ? `${verb} here to pause` : `${verb} here to start`;
+      };
+
       const stop = () => {
         playing = false;
         clearTimeout(timeoutId);
         timeoutId = null;
         els.input.readOnly = false;
+        updateStageHint();
       };
 
       const wordLength = (w) => (w.match(/[\p{L}\p{N}]/gu) || []).length;
@@ -1663,7 +1680,7 @@
         });
 
         /* Keep textarea focused while still allowing playback button clicks */
-        [els.prevWord, els.playPause, els.nextWord, els.reset].forEach((btn) => {
+        [els.prevWord, els.nextWord, els.reset, els.stage].forEach((btn) => {
           btn.addEventListener("mousedown", (e) => e.preventDefault());
         });
 
@@ -1787,11 +1804,19 @@
           playing = true;
           if (highlightOn) applyHighlight();
           scheduleNext();
+          updateStageHint();
         };
 
-        els.playPause.addEventListener("click", () => {
+        els.stage.addEventListener("click", () => {
           if (playing) stop();
           else startPlaying();
+        });
+
+        els.stage.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+            e.preventDefault();
+            els.stage.click();
+          }
         });
 
         /* Step one word at a time; pauses playback first so it doesn't
@@ -1828,6 +1853,7 @@
 
         rebuild();
         render();
+        updateStageHint();
       };
 
       return {
