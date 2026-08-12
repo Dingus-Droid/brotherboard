@@ -35,14 +35,27 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 
   if (tabs.length > 0) {
     const tab = tabs[0];
+    let delivered = false;
     try {
       await chrome.tabs.sendMessage(tab.id, { type: "rsvp4dingus-paste", mode, text });
+      delivered = true;
     } catch (err) {
-      // Content script may not be ready yet (tab still loading); nothing
-      // more we can do for this click without a much heavier retry/reload
-      // flow, so just leave the tab focused below and let the user retry.
+      // No listener on the other end -- most commonly because this tab was
+      // already open *before* the extension was installed/enabled, so it
+      // never got the content script injected (Chrome doesn't retroactively
+      // inject into already-open tabs). Reloading with ?text= reuses the
+      // page-load path instead, which always works. This does mean Append
+      // degrades to Replace in this one fallback case, since a fresh page
+      // load has nothing to append to.
     }
-    await chrome.tabs.update(tab.id, { active: true });
+    if (!delivered) {
+      await chrome.tabs.update(tab.id, {
+        url: APP_BASE_URL + "?text=" + encodeURIComponent(text),
+        active: true,
+      });
+    } else {
+      await chrome.tabs.update(tab.id, { active: true });
+    }
     if (tab.windowId != null) {
       await chrome.windows.update(tab.windowId, { focused: true });
     }
