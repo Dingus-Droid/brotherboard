@@ -293,7 +293,7 @@
     .blocks-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 24px;
+      gap: 16px;
       align-items: flex-start;
       justify-content: center;
       width: 100%;
@@ -304,7 +304,21 @@
       flex-direction: column;
       align-items: center;
       gap: 16px;
-      min-width: 190px;
+      min-width: 174px;
+    }
+
+    /* Background/Content: sized to the swatch (44px), not the title text,
+       so the swatch reaches its neighbor at the same true 16px gap every
+       other control uses. The title text is wider than the swatch, so it's
+       allowed to overflow this box horizontally instead of stretching it. */
+    .color-swatch-block {
+      width: 44px;
+      min-width: 44px;
+      flex: 0 0 44px;
+    }
+
+    .color-swatch-block .block-title {
+      white-space: nowrap;
     }
 
     .block-title {
@@ -791,7 +805,7 @@
               <span class="info-tip">Shift word left/right in the display.</span>
             </button>
           </div>
-          <div class="line">
+          <div class="stepper">
             <button id="left">&lt;</button>
             <div id="centerVal">0px</div>
             <button id="right">&gt;</button>
@@ -903,7 +917,7 @@
           </div>
 
           <div class="blocks-row">
-            <div class="block" style="min-width:160px">
+            <div class="block color-swatch-block">
               <div class="block-title">
                 Background
                 <span class="info" role="button" tabindex="0" aria-label="Background info">!
@@ -927,7 +941,7 @@
               </div>
             </div>
 
-            <div class="block" style="min-width:160px">
+            <div class="block color-swatch-block">
               <div class="block-title">
                 Content
                 <span class="info" role="button" tabindex="0" aria-label="Content info">!
