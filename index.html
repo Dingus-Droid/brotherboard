@@ -25,6 +25,12 @@
       --ctrl-r: 10px;
       --ctrl-px: 14px;
       --sheet-peek: 84px;
+
+      /* Gap from the input box / reading pane borders to the window edge.
+         Scales with viewport width but stays within a floor/ceiling so it
+         doesn't eat into the reading pane's font-size budget on short or
+         narrow screens. */
+      --frame-margin: clamp(12px, 4vw, 24px);
     }
 
     html, body {
@@ -68,10 +74,16 @@
       justify-content: center;
     }
 
+    /* Input box and reading pane get an identical inset on all four sides
+       so their borders sit the same distance from the window edge. */
+    .section.framed {
+      padding: var(--frame-margin);
+    }
+
     /* ===== INPUT (textarea + buttons below) ===== */
     .input-wrap {
-      width: 90%;
-      height: 90%;
+      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -171,13 +183,13 @@
 
     .settings-sheet {
       position: fixed;
-      left: 50%;
-      right: auto;
+      left: var(--frame-margin);
+      right: var(--frame-margin);
       bottom: 0;
-      width: 90%;
+      width: auto;
       height: min(52dvh, 560px);
       max-height: calc(100dvh - 12px);
-      transform: translate(-50%, calc(100% - var(--sheet-peek) - env(safe-area-inset-bottom, 0px)));
+      transform: translateY(calc(100% - var(--sheet-peek) - env(safe-area-inset-bottom, 0px)));
       transition: transform 0.22s ease;
       background: var(--bg);
       color: var(--fg);
@@ -193,11 +205,11 @@
       background-clip: padding-box;
     }
 
-    .settings-sheet.open { transform: translate(-50%, 0); }
+    .settings-sheet.open { transform: translateY(0); }
 
     .settings-handle {
       padding: 10px 14px calc(22px + env(safe-area-inset-bottom, 0px));
-      border-bottom: var(--ctrl-b) solid var(--fg);
+      border-bottom: none;
       background: var(--bg);
       border-top-left-radius: inherit;
       border-top-right-radius: inherit;
@@ -730,7 +742,7 @@
 <body>
   <div class="app">
     <!-- 20%: Input -->
-    <div class="section">
+    <div class="section framed">
       <div class="input-wrap">
         <div class="ta-wrap">
           <textarea id="textInput" placeholder="Paste or type text here…"></textarea>
@@ -788,7 +800,7 @@
     </div>
 
     <!-- 30%: Word -->
-    <div class="section">
+    <div class="section framed">
       <div class="stage" id="stage" role="button" tabindex="0" aria-label="Reading pane. Click to play or pause.">
         <div id="word" class="word"></div>
         <div id="stageHint" class="stage-hint"></div>
