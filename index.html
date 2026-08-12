@@ -437,6 +437,31 @@
       max-width: 62%;
     }
 
+    .ext-copy p {
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .ext-copy ol {
+      margin: 0 0 10px 20px;
+    }
+
+    .ext-copy li {
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .ext-link-row {
+      width: 100%;
+      text-align: center;
+      margin-top: 4px;
+      font-size: 13px;
+    }
+
+    .ext-link-row a {
+      color: var(--fg);
+    }
+
     .diag {
       margin: 8px 0 12px;
       padding: 10px 12px;
@@ -914,6 +939,10 @@
           </div>
 
           <div id="colorNote" class="color-note"></div>
+
+          <div class="ext-link-row">
+            <a href="#" id="extSettingsLink">Paste Helper Extension (Desktop) &rarr;</a>
+          </div>
         </div>
 
     </div>
@@ -943,6 +972,44 @@
       <div class="modal-footer">
         <button id="hyCancel" class="smallbtn" type="button">Cancel</button>
         <button id="hyApply" class="smallbtn" type="button">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paste Helper Extension Modal -->
+  <div id="extModal" class="modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="extTitle">
+      <div class="modal-header">
+        <h2 id="extTitle">Paste Helper Extension</h2>
+        <button id="extClose" class="smallbtn" type="button">Close</button>
+      </div>
+
+      <div class="modal-body">
+        <div id="extIntro" class="ext-copy">
+          <p>Right-click text you've selected on any website and send it straight to RSVP4Dingus &mdash; no repeated "allow paste" prompts.</p>
+          <p><b>Desktop browsers only</b> (Chrome or Edge). This does not work on iPhone or iPad.</p>
+        </div>
+
+        <div id="extSteps" class="ext-copy" style="display:none;">
+          <p>This isn't published to the Chrome Web Store yet, so installing it takes a few manual steps:</p>
+          <ol>
+            <li><a id="extDownload" href="extension/rsvp4dingus-paste-helper.zip" download>Download rsvp4dingus-paste-helper.zip</a></li>
+            <li>Unzip the downloaded file.</li>
+            <li>In Chrome or Edge, go to <code>chrome://extensions</code> (or <code>edge://extensions</code>).</li>
+            <li>Turn on <b>Developer mode</b> (top-right corner).</li>
+            <li>Click <b>Load unpacked</b> and select the unzipped folder.</li>
+          </ol>
+          <p>Chrome/Edge may warn that this is an unverified extension &mdash; expected for a personal, unpublished one, and safe to proceed.</p>
+        </div>
+      </div>
+
+      <div class="modal-footer" id="extChoiceFooter">
+        <button id="extNever" class="smallbtn" type="button">Never</button>
+        <button id="extLater" class="smallbtn" type="button">Later</button>
+        <button id="extNow" class="smallbtn" type="button">Install Now</button>
+      </div>
+      <div class="modal-footer" id="extDoneFooter" style="display:none;">
+        <button id="extDone" class="smallbtn" type="button">Done</button>
       </div>
     </div>
   </div>
@@ -1736,6 +1803,15 @@
 
         window.addEventListener("resize", render);
 
+        /* Lets the browser extension (or anything else) open the app with
+           starting text pre-loaded, e.g. dingus-droid.github.io/brotherboard/?text=... */
+        const startingText = new URLSearchParams(window.location.search).get("text");
+        if (startingText) {
+          els.input.value = startingText;
+          Placeholder.sync();
+          window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+        }
+
         rebuild();
         render();
       };
@@ -1953,12 +2029,82 @@
       return { init };
     })();
 
+    /* ---------- Paste Helper Extension prompt ---------- */
+    const ExtensionPrompt = (() => {
+      const KEY = "extensionPromptChoice";
+
+      const els = {
+        modal: $("extModal"),
+        close: $("extClose"),
+        intro: $("extIntro"),
+        steps: $("extSteps"),
+        choiceFooter: $("extChoiceFooter"),
+        doneFooter: $("extDoneFooter"),
+        never: $("extNever"),
+        later: $("extLater"),
+        now: $("extNow"),
+        done: $("extDone"),
+        settingsLink: $("extSettingsLink"),
+      };
+
+      const showIntroView = () => {
+        els.intro.style.display = "";
+        els.steps.style.display = "none";
+        els.choiceFooter.style.display = "";
+        els.doneFooter.style.display = "none";
+      };
+
+      const showStepsView = () => {
+        els.intro.style.display = "none";
+        els.steps.style.display = "";
+        els.choiceFooter.style.display = "none";
+        els.doneFooter.style.display = "";
+      };
+
+      const open = () => {
+        showIntroView();
+        els.modal.style.display = "flex";
+        els.modal.setAttribute("aria-hidden", "false");
+      };
+
+      const close = () => {
+        els.modal.style.display = "none";
+        els.modal.setAttribute("aria-hidden", "true");
+      };
+
+      const init = () => {
+        els.now.addEventListener("click", showStepsView);
+        els.later.addEventListener("click", close);
+        els.never.addEventListener("click", () => {
+          localStorage.setItem(KEY, "never");
+          close();
+        });
+        els.done.addEventListener("click", close);
+        els.close.addEventListener("click", close);
+
+        els.modal.addEventListener("click", (e) => { if (e.target === els.modal) close(); });
+        window.addEventListener("keydown", (e) => { if (e.key === "Escape" && els.modal.style.display === "flex") close(); });
+
+        els.settingsLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          open();
+        });
+
+        if (localStorage.getItem(KEY) !== "never") {
+          open();
+        }
+      };
+
+      return { init };
+    })();
+
     Theme.init();
     Placeholder.init();
     InfoTips.init();
     SettingsSheet.init();
     Reader.init();
     HyphenReview.init();
+    ExtensionPrompt.init();
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
