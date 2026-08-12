@@ -25,6 +25,12 @@
       --ctrl-r: 10px;
       --ctrl-px: 14px;
       --sheet-peek: 84px;
+
+      /* Gap from the input box / reading pane borders to the window edge.
+         Scales with viewport width but stays within a floor/ceiling so it
+         doesn't eat into the reading pane's font-size budget on short or
+         narrow screens. */
+      --frame-margin: clamp(12px, 4vw, 24px);
     }
 
     html, body {
@@ -68,10 +74,16 @@
       justify-content: center;
     }
 
+    /* Input box and reading pane get an identical inset on all four sides
+       so their borders sit the same distance from the window edge. */
+    .section.framed {
+      padding: var(--frame-margin);
+    }
+
     /* ===== INPUT (textarea + buttons below) ===== */
     .input-wrap {
-      width: 90%;
-      height: 90%;
+      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -730,7 +742,7 @@
 <body>
   <div class="app">
     <!-- 20%: Input -->
-    <div class="section">
+    <div class="section framed">
       <div class="input-wrap">
         <div class="ta-wrap">
           <textarea id="textInput" placeholder="Paste or type text here…"></textarea>
@@ -788,7 +800,7 @@
     </div>
 
     <!-- 30%: Word -->
-    <div class="section">
+    <div class="section framed">
       <div class="stage" id="stage" role="button" tabindex="0" aria-label="Reading pane. Click to play or pause.">
         <div id="word" class="word"></div>
         <div id="stageHint" class="stage-hint"></div>
