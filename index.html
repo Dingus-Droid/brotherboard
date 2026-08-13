@@ -828,6 +828,77 @@
       cursor: pointer;
       white-space: nowrap;
     }
+
+    /* ===== WORD FONT (split button + right-click style menus) ===== */
+    /* The menus are positioned/sized relative to this wrapper rather than
+       .split-btn itself -- .split-btn needs its own overflow:hidden to
+       clip the two halves into one shared pill shape, which would just as
+       happily clip an absolutely-positioned popover nested inside it. */
+    .font-picker {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .split-btn {
+      display: inline-flex;
+      height: var(--ctrl-h);
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      overflow: hidden;
+    }
+
+    .split-half {
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      padding: 0 var(--ctrl-px);
+      font-size: var(--ctrl-fs);
+      font-weight: 400;
+    }
+
+    .split-left { border-right: var(--ctrl-b) solid var(--fg); }
+
+    .split-half.toggle-on { background: var(--fg); color: var(--bg); }
+
+    .font-menu {
+      position: absolute;
+      /* Opens upward -- the split button sits low in the Word panel, and
+         the settings sheet clips (overflow:hidden, for its rounded
+         corners) anything that would render past its own bottom edge. */
+      bottom: calc(100% + 10px);
+      min-width: 170px;
+      padding: 6px;
+      flex-direction: column;
+      gap: 4px;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: 12px;
+      background: var(--bg);
+      box-shadow: 0 10px 28px rgba(0,0,0,.18);
+      z-index: 999;
+    }
+
+    /* :not([hidden]) rather than a bare display rule -- ties in specificity
+       with the browser's default [hidden]{display:none} otherwise and wins
+       by being an author rule, defeating the hidden attribute entirely
+       (same pattern as .category-list above). */
+    .font-menu:not([hidden]) { display: flex; }
+
+    .font-menu[data-side="left"] { left: 0; }
+    .font-menu[data-side="right"] { right: 0; }
+
+    .font-menu-item {
+      height: 36px;
+      padding: 0 10px;
+      font-size: 13px;
+      font-weight: 400;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--fg);
+      justify-content: flex-start;
+    }
+
+    .font-menu-item.selected { background: var(--fg); color: var(--bg); }
   </style>
 </head>
 
@@ -1055,13 +1126,46 @@
             <div class="block-title">
               Word size
               <span class="info" role="button" tabindex="0" aria-label="Word size info">!
-                <span class="info-tip">Maximum display font size (auto-fit).</span>
+                <span class="info-tip">
+                  Maximum display font size — shrinks automatically to fit long words. Normalize keeps it at the smaller size instead of bouncing back up for shorter words, until you raise this setting or load new text.
+                  <label class="info-tip-checkbox">
+                    <input type="checkbox" id="normalizeSize">
+                    Normalize
+                  </label>
+                </span>
               </span>
             </div>
             <div class="stepper">
               <button id="sizeDec" type="button" aria-label="Decrease word size">−</button>
               <input id="wordSize" type="number" min="16" max="240" step="6" inputmode="numeric">
               <button id="sizeInc" type="button" aria-label="Increase word size">+</button>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="block-title">
+              Word Font
+              <button class="info" type="button" aria-label="Word Font info">!
+                <span class="info-tip">Left-click to switch between Monospace and Default. Right-click a side to pick its specific font.</span>
+              </button>
+            </div>
+            <div class="font-picker" id="wordFontPicker">
+              <div class="split-btn">
+                <button type="button" id="fontMono" class="split-half split-left">Monospace</button>
+                <button type="button" id="fontDefault" class="split-half split-right">Default</button>
+              </div>
+              <div class="font-menu" id="fontMenuMono" data-side="left" hidden>
+                <button type="button" class="font-menu-item" data-font="mono-system">System Monospace</button>
+                <button type="button" class="font-menu-item" data-font="mono-consolas">Consolas</button>
+                <button type="button" class="font-menu-item" data-font="mono-menlo">Menlo</button>
+                <button type="button" class="font-menu-item" data-font="mono-courier">Courier New</button>
+              </div>
+              <div class="font-menu" id="fontMenuDefault" data-side="right" hidden>
+                <button type="button" class="font-menu-item" data-font="default-system">System UI</button>
+                <button type="button" class="font-menu-item" data-font="default-arial">Arial</button>
+                <button type="button" class="font-menu-item" data-font="default-georgia">Georgia</button>
+                <button type="button" class="font-menu-item" data-font="default-verdana">Verdana</button>
+              </div>
             </div>
           </div>
 
@@ -1278,6 +1382,112 @@
       return { init };
     })();
 
+    /* ---------- Word Font (split button: category + right-click style menu) ---------- */
+    const WordFont = (() => {
+      const els = {
+        word: $("word"),
+        mono: $("fontMono"),
+        default: $("fontDefault"),
+        menuMono: $("fontMenuMono"),
+        menuDefault: $("fontMenuDefault"),
+      };
+
+      const MONO_FONTS = {
+        "mono-system": 'ui-monospace, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+        "mono-consolas": "Consolas, monospace",
+        "mono-menlo": "Menlo, monospace",
+        "mono-courier": '"Courier New", monospace',
+      };
+      const DEFAULT_FONTS = {
+        "default-system": 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        "default-arial": "Arial, sans-serif",
+        "default-georgia": "Georgia, serif",
+        "default-verdana": "Verdana, sans-serif",
+      };
+
+      let category = "default"; // "mono" | "default"
+      let monoChoice = "mono-system";
+      let defaultChoice = "default-system";
+
+      const closeMenus = () => {
+        els.menuMono.hidden = true;
+        els.menuDefault.hidden = true;
+      };
+
+      const apply = () => {
+        els.word.style.fontFamily = category === "mono" ? MONO_FONTS[monoChoice] : DEFAULT_FONTS[defaultChoice];
+        els.mono.style.fontFamily = MONO_FONTS[monoChoice];
+        els.default.style.fontFamily = DEFAULT_FONTS[defaultChoice];
+        els.mono.classList.toggle("toggle-on", category === "mono");
+        els.default.classList.toggle("toggle-on", category === "default");
+        document.querySelectorAll("#fontMenuMono .font-menu-item").forEach((b) =>
+          b.classList.toggle("selected", b.dataset.font === monoChoice));
+        document.querySelectorAll("#fontMenuDefault .font-menu-item").forEach((b) =>
+          b.classList.toggle("selected", b.dataset.font === defaultChoice));
+      };
+
+      const persist = () => {
+        localStorage.setItem("wordFontCategory", category);
+        localStorage.setItem("wordFontMono", monoChoice);
+        localStorage.setItem("wordFontDefault", defaultChoice);
+      };
+
+      const setCategory = (cat) => {
+        category = cat;
+        persist();
+        apply();
+      };
+
+      const init = () => {
+        category = localStorage.getItem("wordFontCategory") ?? "default";
+        monoChoice = localStorage.getItem("wordFontMono") ?? "mono-system";
+        defaultChoice = localStorage.getItem("wordFontDefault") ?? "default-system";
+        if (!MONO_FONTS[monoChoice]) monoChoice = "mono-system";
+        if (!DEFAULT_FONTS[defaultChoice]) defaultChoice = "default-system";
+        apply();
+
+        els.mono.addEventListener("click", () => setCategory("mono"));
+        els.default.addEventListener("click", () => setCategory("default"));
+
+        els.mono.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          const willOpen = els.menuMono.hidden;
+          closeMenus();
+          els.menuMono.hidden = !willOpen;
+        });
+        els.default.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          const willOpen = els.menuDefault.hidden;
+          closeMenus();
+          els.menuDefault.hidden = !willOpen;
+        });
+
+        els.menuMono.querySelectorAll(".font-menu-item").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            monoChoice = btn.dataset.font;
+            category = "mono";
+            persist();
+            apply();
+            closeMenus();
+          });
+        });
+        els.menuDefault.querySelectorAll(".font-menu-item").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            defaultChoice = btn.dataset.font;
+            category = "default";
+            persist();
+            apply();
+            closeMenus();
+          });
+        });
+
+        document.addEventListener("click", closeMenus);
+        window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
+      };
+
+      return { init };
+    })();
+
     /* ---------- Placeholder overlay sync ---------- */
     const Placeholder = (() => {
       const input = $("textInput");
@@ -1465,6 +1675,7 @@
         input: $("textInput"),
         wpm: $("wpm"),
         size: $("wordSize"),
+        normalizeSize: $("normalizeSize"),
         progressTime: $("progressTime"),
 
         alignLeft: $("alignLeft"),
@@ -1524,6 +1735,8 @@
       let playing = false;
       let wordAlign = "center";
       let focusOn = false;
+      let normalizeSize = false;
+      let autoCap = null; // Normalize's sticky size ceiling; null = start fresh from the Word size setting
       let highlightOn = false;
       let wordSelectArmed = false;
       let appOwnsSelection = false;
@@ -1677,6 +1890,9 @@
         spans = sp;
         lineBreakAfter = lb;
         index = Math.min(index, Math.max(0, words.length - 1));
+        // New text gets a clean shot at the full Word size setting instead
+        // of inheriting whatever Normalize had shrunk a previous text down to.
+        autoCap = null;
       };
 
       const scrollToSelection = (start, end) => {
@@ -1769,7 +1985,19 @@
 
         const groupEnd = computeGroupEnd(index);
         setWordDisplay(words.slice(index, groupEnd).join(" "));
-        els.word.style.fontSize = clampFontSize(desired) + "px";
+
+        let fitted;
+        if (normalizeSize) {
+          // Sticky ceiling: only ever shrinks word-to-word, never grows back
+          // up on its own -- keeps the font size (and Focus's pivot letter)
+          // from jumping around between a short word and a long one.
+          if (autoCap == null) autoCap = desired;
+          fitted = clampFontSize(autoCap);
+          if (fitted < autoCap) autoCap = fitted;
+        } else {
+          fitted = clampFontSize(desired);
+        }
+        els.word.style.fontSize = fitted + "px";
 
         const total = Math.ceil((words.length / wpm) * 60);
         const remaining = Math.ceil(((words.length - index) / wpm) * 60);
@@ -1787,12 +2015,24 @@
         els.stageHint.textContent = playing ? `${verb} here to pause` : `${verb} here to start`;
       };
 
+      // Only Normalize has a single "current effective size" worth
+      // reflecting back into the setting -- without it, every word fits
+      // independently up to the configured max, so there's no one size
+      // to sync.
+      const syncSizeFieldToAutoCap = () => {
+        if (normalizeSize && autoCap != null && autoCap !== Number(els.size.value)) {
+          els.size.value = autoCap;
+          localStorage.setItem("wordSize", String(autoCap));
+        }
+      };
+
       const stop = () => {
         playing = false;
         clearTimeout(timeoutId);
         timeoutId = null;
         els.input.readOnly = false;
         updateStageHint();
+        syncSizeFieldToAutoCap();
       };
 
       const wordLength = (w) => (w.match(/[\p{L}\p{N}]/gu) || []).length;
@@ -1981,6 +2221,8 @@
       const init = () => {
         els.wpm.value = localStorage.getItem("wpm") ?? 150;
         els.size.value = localStorage.getItem("wordSize") ?? 48;
+        normalizeSize = (localStorage.getItem("normalizeSize") ?? "0") === "1";
+        els.normalizeSize.checked = normalizeSize;
 
         els.longSlow.value = localStorage.getItem("longSlow") ?? "0.10";
         els.puncSlow.value = localStorage.getItem("puncSlow") ?? "0.10";
@@ -2164,6 +2406,16 @@
 
         els.size.addEventListener("input", () => {
           localStorage.setItem("wordSize", els.size.value);
+          // An explicit change to the setting always wins immediately over
+          // whatever Normalize had shrunk the ceiling down to.
+          autoCap = null;
+          render();
+        });
+
+        els.normalizeSize.addEventListener("change", () => {
+          normalizeSize = els.normalizeSize.checked;
+          localStorage.setItem("normalizeSize", normalizeSize ? "1" : "0");
+          autoCap = null;
           render();
         });
 
@@ -2298,6 +2550,9 @@
           stop();
           index = Math.min(words.length - 1, Math.max(0, index + delta));
           render();
+          // stop() above synced the size for the word being left; the step
+          // just landed on a different one, so sync again for that one.
+          syncSizeFieldToAutoCap();
           // render() only re-applies the highlight while playing; stepping
           // manually (often while paused) should still move it to match.
           if (highlightOn) applyHighlight();
@@ -2619,6 +2874,7 @@
     })();
 
     Theme.init();
+    WordFont.init();
     Placeholder.init();
     InfoTips.init();
     CategoryNav.init();
