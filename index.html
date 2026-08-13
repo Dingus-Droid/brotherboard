@@ -265,21 +265,12 @@
     }
 
     .category-panel-header {
-      /* Mirrors the Settings handle's own button so it reads as the same
-         kind of header, one level deeper -- confirms which category you're
-         in the same way "Settings" confirms you're in Settings.
-         inline-flex (sized to content, not stretched) relies on the
-         parent's text-align:center above -- margin:auto doesn't center
-         an inline-level box. */
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      height: var(--ctrl-h);
+      /* Now a real <button> -- base button{} styling already covers the
+         box/border/sizing, matching the Settings handle's own button so
+         it reads as the same kind of header, one level deeper. Clicking
+         it closes back to the category list, the same action clicking
+         Settings takes at this point. */
       min-width: 160px;
-      padding: 0 var(--ctrl-px);
-      border: var(--ctrl-b) solid var(--fg);
-      border-radius: var(--ctrl-r);
-      font-size: var(--ctrl-fs);
       font-weight: 650;
       margin-bottom: 16px;
     }
@@ -883,7 +874,7 @@
   </div>
 
   <div id="settingsSheet" class="settings-sheet" aria-hidden="true">
-    <div class="settings-handle">
+    <div class="settings-handle" id="settingsHandle">
       <button id="settingsToggle" type="button" aria-expanded="false">Settings</button>
     </div>
     <div class="settings-body">
@@ -896,7 +887,7 @@
       </div>
 
       <div class="category-panel" id="panelSpeed" hidden>
-        <div class="category-panel-header">Speed</div>
+        <button class="category-panel-header" type="button">Speed</button>
         <div class="category-panel-body">
           <div class="block">
             <div class="block-title">
@@ -935,7 +926,7 @@
       </div>
 
       <div class="category-panel" id="panelDelays" hidden>
-        <div class="category-panel-header">Delays</div>
+        <button class="category-panel-header" type="button">Delays</button>
         <div class="category-panel-body">
           <div class="block">
             <div class="block-title">
@@ -1010,7 +1001,7 @@
       </div>
 
       <div class="category-panel" id="panelWord" hidden>
-        <div class="category-panel-header">Word</div>
+        <button class="category-panel-header" type="button">Word</button>
         <div class="category-panel-body">
           <div class="center-group">
             <div class="center-label">
@@ -1043,7 +1034,7 @@
       </div>
 
       <div class="category-panel" id="panelInput" hidden>
-        <div class="category-panel-header">Input</div>
+        <button class="category-panel-header" type="button">Input</button>
         <div class="category-panel-body">
           <div class="btnwrap">
             <button id="fixHyphens">Fix Hyphens</button>
@@ -1066,7 +1057,7 @@
       </div>
 
       <div class="category-panel" id="panelColors" hidden>
-        <div class="category-panel-header">Colors</div>
+        <button class="category-panel-header" type="button">Colors</button>
         <div class="category-panel-body">
           <div class="block color-swatch-block">
             <div class="block-title">
@@ -1307,6 +1298,7 @@
           input: $("catBtnInput"),
           colors: $("catBtnColors"),
         },
+        headers: Array.from(document.querySelectorAll(".category-panel-header")),
       };
 
       let openCategory = null;
@@ -1324,8 +1316,8 @@
       };
 
       /* Returns to the category-button list without closing the sheet
-         itself -- the Settings button drives this, not a separate
-         back control on each panel. */
+         itself. Reachable both via the Settings button and via clicking
+         the open category's own header -- same action either way. */
       const closeCategory = () => {
         openCategory = null;
         els.list.hidden = false;
@@ -1336,6 +1328,7 @@
         CATEGORIES.forEach((c) => {
           els.buttons[c].addEventListener("click", () => openCat(c));
         });
+        els.headers.forEach((h) => h.addEventListener("click", () => closeCategory()));
         closeCategory();
       };
 
@@ -1346,6 +1339,16 @@
       const els = {
         sheet: $("settingsSheet"),
         toggle: $("settingsToggle"),
+        handle: $("settingsHandle"),
+      };
+
+      /* --sheet-peek was a hardcoded guess that drifted out of sync with
+         the handle's real rendered height, leaving a sliver of the next
+         row visible below it while collapsed. Measuring it directly
+         means it can never drift again. */
+      const syncPeekHeight = () => {
+        if (!els.handle) return;
+        document.documentElement.style.setProperty("--sheet-peek", els.handle.getBoundingClientRect().height + "px");
       };
 
       const isOpen = () => !!els.sheet && els.sheet.classList.contains("open");
@@ -1362,6 +1365,9 @@
 
       const init = () => {
         if (!els.sheet || !els.toggle) return;
+        syncPeekHeight();
+        window.addEventListener("resize", syncPeekHeight);
+
         els.toggle.addEventListener("click", (e) => {
           e.stopPropagation();
           /* Inside a category, Settings steps back to the category list
