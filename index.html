@@ -872,7 +872,13 @@
               <div class="block-title">
                 Line Breaks
                 <span class="info" role="button" tabindex="0" aria-label="Line Breaks info">!
-                  <span class="info-tip">Extra delay at every line break (set to 0 to turn off). Also ends a Words per Flash group early, same as a sentence break.</span>
+                  <span class="info-tip">
+                    Extra delay at every line break (set to 0 to turn off). Also ends a Words per Flash group early, same as a sentence break.
+                    <label class="info-tip-checkbox">
+                      <input type="checkbox" id="lineBreakBlank">
+                      Show as blank space
+                    </label>
+                  </span>
                 </span>
               </div>
               <div class="stepper">
@@ -965,6 +971,7 @@
                       <label><input type="checkbox" class="puncMark" value="'" checked> Apostrophe '</label>
                       <label><input type="checkbox" class="puncMark" value=";" checked> Semicolon ;</label>
                       <label><input type="checkbox" class="puncMark" value=":" checked> Colon :</label>
+                      <label><input type="checkbox" class="puncMark" value="()" checked> Parentheses ( )</label>
                     </div>
                   </span>
                 </span>
@@ -1289,6 +1296,7 @@
         lineBreakSlow: $("lineBreakSlow"),
         lineBreakDec: $("lineBreakDec"),
         lineBreakInc: $("lineBreakInc"),
+        lineBreakBlank: $("lineBreakBlank"),
 
         longThreshold: $("longThreshold"),
         longThreshDec: $("longThreshDec"),
@@ -1318,7 +1326,7 @@
       let wordSelectArmed = false;
       let appOwnsSelection = false;
 
-      const PUNC_TRACKED = [".", ",", "?", "!", "'", ";", ":"];
+      const PUNC_TRACKED = [".", ",", "?", "!", "'", ";", ":", "(", ")"];
       let puncEnabled = new Set(PUNC_TRACKED);
 
       let mirror = null;
@@ -1607,17 +1615,40 @@
         if (!playing || !words.length) return;
 
         const groupEnd = computeGroupEnd(index);
-        let delay = 0;
-        for (let i = index; i < groupEnd; i++) delay += wordDelayMs(words[i], i);
+        // A line break can only ever land on the last word of a group --
+        // computeGroupEnd already stops the group right there whenever the
+        // setting is on, so nothing earlier in the group carries one.
+        const lastIdx = groupEnd - 1;
+        const lineBreakMs = lineBreakAfter[lastIdx] ? toMs(els.lineBreakSlow.value) : 0;
+        const showBlank = lineBreakMs > 0 && els.lineBreakBlank.checked;
 
-        timeoutId = setTimeout(() => {
-          if (!playing) return;
+        let delay = 0;
+        for (let i = index; i < groupEnd; i++) {
+          // In blank mode, the line-break extra is spent as its own blank
+          // frame below instead of being folded into this word's delay.
+          delay += wordDelayMs(words[i], showBlank && i === lastIdx ? null : i);
+        }
+
+        const advance = () => {
           if (groupEnd < words.length) {
             index = groupEnd;
             render();
             scheduleNext();
           } else {
             stop();
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          if (!playing) return;
+          if (showBlank) {
+            els.word.textContent = "";
+            timeoutId = setTimeout(() => {
+              if (!playing) return;
+              advance();
+            }, lineBreakMs);
+          } else {
+            advance();
           }
         }, delay);
       };
@@ -1684,14 +1715,20 @@
         els.longThreshold.value = localStorage.getItem("longThreshold") ?? 6;
         els.wordsPerFlash.value = localStorage.getItem("wordsPerFlash") ?? 1;
         els.stopAtSentenceBreaks.checked = (localStorage.getItem("stopAtSentenceBreaks") ?? "0") === "1";
+        els.lineBreakBlank.checked = (localStorage.getItem("lineBreakBlank") ?? "0") === "1";
 
         const savedPunc = localStorage.getItem("puncEnabledMarks");
         puncEnabled = new Set(savedPunc !== null ? savedPunc.split("") : PUNC_TRACKED);
         document.querySelectorAll(".puncMark").forEach((cb) => {
-          cb.checked = puncEnabled.has(cb.value);
+          // A checkbox's value can hold more than one character (e.g. "()"
+          // for Parentheses), toggling every character it lists together.
+          const chars = Array.from(cb.value);
+          cb.checked = chars.every((ch) => puncEnabled.has(ch));
           cb.addEventListener("change", () => {
-            if (cb.checked) puncEnabled.add(cb.value);
-            else puncEnabled.delete(cb.value);
+            chars.forEach((ch) => {
+              if (cb.checked) puncEnabled.add(ch);
+              else puncEnabled.delete(ch);
+            });
             localStorage.setItem("puncEnabledMarks", PUNC_TRACKED.filter((ch) => puncEnabled.has(ch)).join(""));
             if (playing) scheduleNext();
             render();
@@ -1877,6 +1914,11 @@
         els.lineBreakSlow.addEventListener("blur", () => {
           enforceSecsFormat(els.lineBreakSlow);
           localStorage.setItem("lineBreakSlow", els.lineBreakSlow.value);
+          if (playing) scheduleNext();
+        });
+
+        els.lineBreakBlank.addEventListener("change", () => {
+          localStorage.setItem("lineBreakBlank", els.lineBreakBlank.checked ? "1" : "0");
           if (playing) scheduleNext();
         });
 
