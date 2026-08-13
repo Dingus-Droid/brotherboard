@@ -851,6 +851,21 @@
                 <span class="info-tip">Review and replace hyphen-like cases (line-break pairs and inline hyphens).</span>
               </button>
             </div>
+
+            <div class="block">
+              <div class="block-title">
+                Line Breaks
+                <span class="info" role="button" tabindex="0" aria-label="Line Breaks info">!
+                  <span class="info-tip">Extra delay at every line break (set to 0 to turn off). Also ends a Words per Flash group early, same as a sentence break.</span>
+                </span>
+              </div>
+              <div class="stepper">
+                <button id="lineBreakDec" type="button" aria-label="Decrease line break slowdown">−</button>
+                <input id="lineBreakSlow" type="number" min="0" max="1.50" step="0.10" inputmode="decimal">
+                <button id="lineBreakInc" type="button" aria-label="Increase line break slowdown">+</button>
+              </div>
+            </div>
+
             <div class="btnwrap">
               <button id="toggleHighlight" type="button">Highlighter: Off</button>
               <button class="info" type="button" aria-label="Highlighter info">!
@@ -1255,6 +1270,10 @@
         puncDec: $("puncDec"),
         puncInc: $("puncInc"),
 
+        lineBreakSlow: $("lineBreakSlow"),
+        lineBreakDec: $("lineBreakDec"),
+        lineBreakInc: $("lineBreakInc"),
+
         longThreshold: $("longThreshold"),
         longThreshDec: $("longThreshDec"),
         longThreshInc: $("longThreshInc"),
@@ -1274,6 +1293,7 @@
 
       let words = [];
       let spans = [];
+      let lineBreakAfter = [];
       let index = 0;
       let timeoutId = null;
       let playing = false;
@@ -1405,8 +1425,17 @@
           w.push(m[0]);
           sp.push({ start: m.index, end: m.index + m[0].length });
         }
+        // Tracks whether a literal line break (single or blank-line -- they
+        // get the same treatment) sits between this word and the next, so
+        // playback can pause there regardless of what caused the break.
+        const lb = [];
+        for (let i = 0; i < w.length; i++) {
+          const nextStart = i + 1 < sp.length ? sp[i + 1].start : text.length;
+          lb.push(text.slice(sp[i].end, nextStart).includes("\n"));
+        }
         words = w;
         spans = sp;
+        lineBreakAfter = lb;
         index = Math.min(index, Math.max(0, words.length - 1));
       };
 
@@ -1446,9 +1475,13 @@
       const computeGroupEnd = (startIndex) => {
         const size = Math.max(1, Number(els.wordsPerFlash.value) || 1);
         let end = Math.min(words.length, startIndex + size);
-        if (els.stopAtSentenceBreaks.checked) {
+        const stopAtSentences = els.stopAtSentenceBreaks.checked;
+        const stopAtLineBreaks = Number(els.lineBreakSlow.value) > 0;
+        if (stopAtSentences || stopAtLineBreaks) {
           for (let i = startIndex; i < end; i++) {
-            if (endsSentence(words[i])) { end = i + 1; break; }
+            const sentenceStop = stopAtSentences && endsSentence(words[i]);
+            const lineStop = stopAtLineBreaks && lineBreakAfter[i];
+            if (sentenceStop || lineStop) { end = i + 1; break; }
           }
         }
         return end;
@@ -1534,7 +1567,7 @@
         return count;
       };
 
-      const wordDelayMs = (w) => {
+      const wordDelayMs = (w, idx) => {
         const base = baseMs();
 
         const len = wordLength(w);
@@ -1546,7 +1579,9 @@
         const perPuncMs = toMs(els.puncSlow.value);
         const puncExtra = punctuationCharCount(w) * perPuncMs;
 
-        return Math.ceil(base + longExtra + puncExtra);
+        const lineExtra = (idx != null && lineBreakAfter[idx]) ? toMs(els.lineBreakSlow.value) : 0;
+
+        return Math.ceil(base + longExtra + puncExtra + lineExtra);
       };
 
       const scheduleNext = () => {
@@ -1557,7 +1592,7 @@
 
         const groupEnd = computeGroupEnd(index);
         let delay = 0;
-        for (let i = index; i < groupEnd; i++) delay += wordDelayMs(words[i]);
+        for (let i = index; i < groupEnd; i++) delay += wordDelayMs(words[i], i);
 
         timeoutId = setTimeout(() => {
           if (!playing) return;
@@ -1580,7 +1615,7 @@
         const next = Math.min(max, Math.max(min, current + delta * step));
         input.value = next;
 
-        if (input === els.longSlow || input === els.puncSlow) {
+        if (input === els.longSlow || input === els.puncSlow || input === els.lineBreakSlow) {
           input.value = Number(input.value).toFixed(2);
         }
 
@@ -1625,8 +1660,10 @@
 
         els.longSlow.value = localStorage.getItem("longSlow") ?? "0.10";
         els.puncSlow.value = localStorage.getItem("puncSlow") ?? "0.10";
+        els.lineBreakSlow.value = localStorage.getItem("lineBreakSlow") ?? "0.10";
         enforceSecsFormat(els.longSlow);
         enforceSecsFormat(els.puncSlow);
+        enforceSecsFormat(els.lineBreakSlow);
 
         els.longThreshold.value = localStorage.getItem("longThreshold") ?? 6;
         els.wordsPerFlash.value = localStorage.getItem("wordsPerFlash") ?? 1;
@@ -1816,6 +1853,17 @@
           if (playing) scheduleNext();
         });
 
+        els.lineBreakSlow.addEventListener("input", () => {
+          localStorage.setItem("lineBreakSlow", els.lineBreakSlow.value);
+          if (playing) scheduleNext();
+          render();
+        });
+        els.lineBreakSlow.addEventListener("blur", () => {
+          enforceSecsFormat(els.lineBreakSlow);
+          localStorage.setItem("lineBreakSlow", els.lineBreakSlow.value);
+          if (playing) scheduleNext();
+        });
+
         els.longThreshold.addEventListener("input", () => {
           localStorage.setItem("longThreshold", els.longThreshold.value);
           if (playing) scheduleNext();
@@ -1843,6 +1891,8 @@
         els.longInc.addEventListener("click", () => bumpNumber(els.longSlow, +1));
         els.puncDec.addEventListener("click", () => bumpNumber(els.puncSlow, -1));
         els.puncInc.addEventListener("click", () => bumpNumber(els.puncSlow, +1));
+        els.lineBreakDec.addEventListener("click", () => bumpNumber(els.lineBreakSlow, -1));
+        els.lineBreakInc.addEventListener("click", () => bumpNumber(els.lineBreakSlow, +1));
 
         els.longThreshDec.addEventListener("click", () => bumpNumber(els.longThreshold, -1));
         els.longThreshInc.addEventListener("click", () => bumpNumber(els.longThreshold, +1));
