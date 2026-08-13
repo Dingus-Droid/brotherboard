@@ -21,14 +21,74 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener(async (info) => {
+/* Runs inside the page the user right-clicked on (injected on demand via
+   chrome.scripting, not a declared content script -- works on any site,
+   not just RSVP4Dingus) to build paragraph-aware plain text from the
+   current selection, the same way the app's own Paste button does.
+   Chrome's info.selectionText flattens paragraph structure with no way
+   to recover it, which is why Replace/Append lost paragraph spacing
+   that the Paste button (reading the clipboard's HTML) kept. */
+function extractSelectionText() {
+  const BLOCK_TAGS = new Set([
+    "P", "DIV", "LI", "TR", "H1", "H2", "H3", "H4", "H5", "H6",
+    "BLOCKQUOTE", "PRE", "SECTION", "ARTICLE", "HEADER", "FOOTER",
+    "UL", "OL", "TABLE", "TBODY", "THEAD",
+  ]);
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+
+  const container = document.createElement("div");
+  for (let i = 0; i < sel.rangeCount; i++) {
+    container.appendChild(sel.getRangeAt(i).cloneContents());
+  }
+
+  let out = "";
+  const walk = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      out += node.textContent.replace(/\s+/g, " ");
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return;
+    if (node.tagName === "BR") {
+      out += "\n";
+      return;
+    }
+    const isBlock = BLOCK_TAGS.has(node.tagName);
+    node.childNodes.forEach(walk);
+    if (isBlock) out += "\n\n";
+  };
+  container.childNodes.forEach(walk);
+  return out
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, sourceTab) => {
   const mode =
     info.menuItemId === "rsvp4dingus-append" ? "append" :
     info.menuItemId === "rsvp4dingus-replace" ? "replace" :
     null;
   if (!mode) return;
 
-  const text = info.selectionText || "";
+  let text = info.selectionText || "";
+
+  if (sourceTab && sourceTab.id != null) {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: sourceTab.id },
+        func: extractSelectionText,
+      });
+      const structured = results && results[0] && results[0].result;
+      if (structured) text = structured;
+    } catch (err) {
+      // Falls back to info.selectionText above -- covers pages that
+      // block script injection (chrome:// pages, the Web Store, etc.).
+    }
+  }
+
   if (!text) return;
 
   const tabs = await chrome.tabs.query({ url: APP_URL_PATTERN });

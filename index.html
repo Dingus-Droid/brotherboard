@@ -1348,7 +1348,11 @@
           if (isBlock) out += "\n\n";
         };
         doc.body.childNodes.forEach(walk);
-        return out.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n").trim();
+        return out
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n[ \t]+/g, "\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
       };
 
       /* Prefers the clipboard's HTML representation (converted ourselves,
