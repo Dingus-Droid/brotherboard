@@ -64,6 +64,10 @@
       grid-template-rows: minmax(200px, 40fr) minmax(100px, 44fr) minmax(40px, 16fr);
       overflow-x: hidden;
       overflow-y: auto;
+      /* Reserves the scrollbar's width whether or not it's currently
+         showing, so centered content doesn't shift sideways the moment
+         a scrollbar appears (e.g. opening Settings on a short window). */
+      scrollbar-gutter: stable;
       background: var(--bg);
       color: var(--fg);
     }
@@ -468,19 +472,21 @@
 
     .modal-controls {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+      align-items: center;
       gap: 12px;
       margin-bottom: 10px;
       font-size: 13px;
+      /* Lines the checkbox glyph up with the ones inside each .hy-row
+         below (row border + row padding = the same inset). */
+      padding-left: calc(var(--ctrl-b) + 10px);
     }
 
     .hint {
       opacity: 0.75;
       font-size: 12px;
       line-height: 1.3;
-      text-align: right;
-      max-width: 62%;
+      text-align: center;
+      margin-bottom: 12px;
     }
 
     .ext-copy p {
@@ -554,7 +560,6 @@
       height: var(--ctrl-h);
       padding: 0 4px;
       border: none;
-      border-bottom: var(--ctrl-b) solid var(--fg);
       border-radius: 0;
       font-size: 12px;
       background: transparent;
@@ -882,7 +887,7 @@
             </div>
 
             <div class="btnwrap">
-              <button id="toggleHighlight" type="button">Highlighter: Off</button>
+              <button id="toggleHighlight" type="button">Highlight: Off</button>
               <button class="info" type="button" aria-label="Highlighter info">!
                 <span class="info-tip">Highlights the current word in the textarea while playing.</span>
               </button>
@@ -1034,13 +1039,15 @@
       <div class="modal-body">
         <div class="modal-controls">
           <label><input type="checkbox" id="hySelectAll"> Select all</label>
-          <div class="hint">
-            Includes <b>line-break pairs</b> (prefix + next-line word) and <b>inline hyphen tokens</b>.
-            Check items to replace, then Apply.
-          </div>
         </div>
 
         <div id="hyDiag" class="diag"></div>
+
+        <div class="hint">
+          Includes <b>line-break pairs</b> (prefix + next-line word) and <b>inline hyphen tokens</b>.
+          Check items to replace, edit the replacement word if needed, then Apply.
+        </div>
+
         <div id="hyList" class="hy-list"></div>
       </div>
 
@@ -1300,6 +1307,7 @@
         stopAtSentenceBreaks: $("stopAtSentenceBreaks"),
 
         toggleHighlight: $("toggleHighlight"),
+        fixHyphens: $("fixHyphens"),
 
         wordSelectBtn: $("wordSelectBtn"),
         clearAllBtn: $("clearAllBtn"),
@@ -1660,8 +1668,20 @@
         input.dispatchEvent(new Event("input", { bubbles: true }));
       };
 
+      const syncFixHyphensHighlightWidth = () => {
+        els.fixHyphens.style.width = "auto";
+        els.toggleHighlight.style.width = "auto";
+        const w = Math.max(
+          els.fixHyphens.getBoundingClientRect().width,
+          els.toggleHighlight.getBoundingClientRect().width
+        );
+        els.fixHyphens.style.width = w + "px";
+        els.toggleHighlight.style.width = w + "px";
+      };
+
       const setHighlightButton = () => {
-        els.toggleHighlight.textContent = `Highlighter: ${highlightOn ? "On" : "Off"}`;
+        els.toggleHighlight.textContent = `Highlight: ${highlightOn ? "On" : "Off"}`;
+        syncFixHyphensHighlightWidth();
       };
 
       const applyWordAlign = () => {
@@ -2089,11 +2109,7 @@
         return counts;
       };
 
-      const label = (ch) => {
-        if (ch === "&shy;/&#173;") return ch;
-        const cp = ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
-        return `${ch} (U+${cp})`;
-      };
+      const label = (ch) => ch;
 
       const applyExactTokenReplacement = (text, oldToken, newToken) => {
         const parts = text.split(/(\s+)/);
