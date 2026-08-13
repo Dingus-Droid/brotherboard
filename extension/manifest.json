@@ -3,7 +3,7 @@
   "name": "RSVP4Dingus Paste Helper",
   "version": "1.0.0",
   "description": "Right-click selected text on any page and send it straight to RSVP4Dingus.",
-  "permissions": ["contextMenus", "tabs"],
+  "permissions": ["contextMenus", "tabs", "scripting", "activeTab"],
   "host_permissions": ["https://dingus-droid.github.io/brotherboard/*"],
   "background": {
     "service_worker": "background.js"
