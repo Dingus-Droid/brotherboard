@@ -157,6 +157,9 @@
       touch-action: manipulation;
     }
 
+    .stage.align-left { justify-content: flex-start; }
+    .stage.align-right { justify-content: flex-end; }
+
     .word {
       white-space: nowrap;
       font-weight: 600;
@@ -295,27 +298,11 @@
     }
 
     /* Make arrow buttons match the same square footprint */
-    #left, #right, #prevWord, #nextWord {
+    #prevWord, #nextWord {
       width: var(--ctrl-h);
       padding: 0;
       font-size: var(--ctrl-fs);
       font-weight: 700;
-    }
-
-    /* Make center value look like a control (same size class) */
-    #centerVal {
-      height: var(--ctrl-h);
-      min-width: 84px;
-      padding: 0 10px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: var(--ctrl-b) solid var(--fg);
-      border-radius: var(--ctrl-r);
-      background: var(--bg);
-      color: var(--fg);
-      font-size: var(--ctrl-fs);
-      line-height: 1;
     }
 
     /* ===== SETTINGS AS CENTERED BLOCKS ===== */
@@ -527,7 +514,7 @@
 
     .hy-row {
       display: grid;
-      grid-template-columns: 26px 1.1fr 18px 1fr;
+      grid-template-columns: 26px max-content 18px 1fr;
       gap: 8px 10px;
       align-items: center;
       padding: 10px;
@@ -574,11 +561,9 @@
 
     .badge {
       display: inline-block;
-      margin-left: 8px;
-      padding: 1px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      border: var(--ctrl-b) solid var(--fg);
+      font-size: 13px;
+      color: var(--fg);
+      opacity: 0.55;
       vertical-align: middle;
     }
 
@@ -846,15 +831,15 @@
     <div class="settings-body">
 <div class="center-group">
           <div class="center-label">
-            Center Word
-            <button class="info" type="button" aria-label="Center Word info">!
-              <span class="info-tip">Shift word left/right in the display.</span>
+            Word Align
+            <button class="info" type="button" aria-label="Word Align info">!
+              <span class="info-tip">Align the word within the reading pane: left, center, or right.</span>
             </button>
           </div>
           <div class="stepper">
-            <button id="left">&lt;</button>
-            <div id="centerVal">0px</div>
-            <button id="right">&gt;</button>
+            <button id="alignLeft" type="button">Left</button>
+            <button id="alignCenter" type="button">Center</button>
+            <button id="alignRight" type="button">Right</button>
           </div>
         </div>
 
@@ -1262,7 +1247,6 @@
     /* ---------- Reader ---------- */
     const Reader = (() => {
       const SAFETY = 1;
-      const NUDGE = 2;
 
       const els = {
         stage: $("stage"),
@@ -1273,9 +1257,9 @@
         size: $("wordSize"),
         progressTime: $("progressTime"),
 
-        centerVal: $("centerVal"),
-        left: $("left"),
-        right: $("right"),
+        alignLeft: $("alignLeft"),
+        alignCenter: $("alignCenter"),
+        alignRight: $("alignRight"),
 
         prevWord: $("prevWord"),
         nextWord: $("nextWord"),
@@ -1321,7 +1305,7 @@
       let index = 0;
       let timeoutId = null;
       let playing = false;
-      let centerOffset = 0;
+      let wordAlign = "center";
       let highlightOn = false;
       let wordSelectArmed = false;
       let appOwnsSelection = false;
@@ -1535,7 +1519,6 @@
 
         const groupEnd = computeGroupEnd(index);
         els.word.textContent = words.slice(index, groupEnd).join(" ");
-        els.word.style.transform = `translateX(${centerOffset}px)`;
         els.word.style.fontSize = clampFontSize(desired) + "px";
 
         const total = Math.ceil((words.length / wpm) * 60);
@@ -1673,6 +1656,20 @@
         els.toggleHighlight.textContent = `Highlighter: ${highlightOn ? "On" : "Off"}`;
       };
 
+      const applyWordAlign = () => {
+        els.stage.classList.toggle("align-left", wordAlign === "left");
+        els.stage.classList.toggle("align-right", wordAlign === "right");
+        els.alignLeft.classList.toggle("toggle-on", wordAlign === "left");
+        els.alignCenter.classList.toggle("toggle-on", wordAlign === "center");
+        els.alignRight.classList.toggle("toggle-on", wordAlign === "right");
+      };
+
+      const setWordAlign = (value) => {
+        wordAlign = value;
+        localStorage.setItem("wordAlign", wordAlign);
+        applyWordAlign();
+      };
+
       const setWordSelectButton = () => {
         els.wordSelectBtn.classList.toggle("toggle-on", wordSelectArmed);
         els.wordSelectBtn.setAttribute("aria-pressed", wordSelectArmed ? "true" : "false");
@@ -1735,8 +1732,8 @@
           });
         });
 
-        centerOffset = Number(localStorage.getItem("centerOffset") ?? 0);
-        els.centerVal.textContent = centerOffset + "px";
+        wordAlign = localStorage.getItem("wordAlign") ?? "center";
+        applyWordAlign();
 
         highlightOn = (localStorage.getItem("highlightOn") ?? "0") === "1";
         setHighlightButton();
@@ -1798,7 +1795,6 @@
                 const caret = selStart + inserted.length;
                 els.input.setSelectionRange(caret, caret);
               } else {
-                els.input.select();
                 els.input.value = clip ?? "";
                 els.input.scrollTop = 0;
                 index = 0;
@@ -1842,6 +1838,7 @@
 
         /* Word Select toggle (stays ON until toggled OFF, or until Play) */
         els.wordSelectBtn.addEventListener("click", () => {
+          stop();
           wordSelectArmed = !wordSelectArmed;
           setWordSelectButton();
         });
@@ -1957,19 +1954,9 @@
         els.wordsPerFlashDec.addEventListener("click", () => bumpNumber(els.wordsPerFlash, -1));
         els.wordsPerFlashInc.addEventListener("click", () => bumpNumber(els.wordsPerFlash, +1));
 
-        els.left.addEventListener("click", () => {
-          centerOffset -= NUDGE;
-          els.centerVal.textContent = centerOffset + "px";
-          localStorage.setItem("centerOffset", centerOffset);
-          render();
-        });
-
-        els.right.addEventListener("click", () => {
-          centerOffset += NUDGE;
-          els.centerVal.textContent = centerOffset + "px";
-          localStorage.setItem("centerOffset", centerOffset);
-          render();
-        });
+        els.alignLeft.addEventListener("click", () => setWordAlign("left"));
+        els.alignCenter.addEventListener("click", () => setWordAlign("center"));
+        els.alignRight.addEventListener("click", () => setWordAlign("right"));
 
         els.toggleHighlight.addEventListener("click", () => {
           highlightOn = !highlightOn;
