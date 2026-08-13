@@ -246,6 +246,51 @@
       padding: 14px 14px calc(16px + env(safe-area-inset-bottom, 0px));
     }
 
+    /* ===== SETTINGS CATEGORY NAVIGATION ===== */
+    /* :not([hidden]) rather than a bare display rule -- a plain
+       .category-list{display:flex} would tie in specificity with the
+       browser's default [hidden]{display:none} and win by being an
+       author rule, defeating the hidden attribute entirely. */
+    .category-list:not([hidden]) {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .category-btn { min-width: 160px; }
+
+    .category-panel {
+      text-align: center;
+    }
+
+    .category-panel-header {
+      /* Mirrors the Settings handle's own button so it reads as the same
+         kind of header, one level deeper -- confirms which category you're
+         in the same way "Settings" confirms you're in Settings.
+         inline-flex (sized to content, not stretched) relies on the
+         parent's text-align:center above -- margin:auto doesn't center
+         an inline-level box. */
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--ctrl-h);
+      min-width: 160px;
+      padding: 0 var(--ctrl-px);
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: var(--ctrl-r);
+      font-size: var(--ctrl-fs);
+      font-weight: 650;
+      margin-bottom: 16px;
+    }
+
+    .category-panel-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
     .line {
       display: flex;
       align-items: center;
@@ -842,189 +887,210 @@
       <button id="settingsToggle" type="button" aria-expanded="false">Settings</button>
     </div>
     <div class="settings-body">
-<div class="center-group">
-          <div class="center-label">
-            Word Align
-            <button class="info" type="button" aria-label="Word Align info">!
-              <span class="info-tip">Align the word within the reading pane: left, center, or right.</span>
-            </button>
+      <div class="category-list" id="categoryList">
+        <button class="category-btn" id="catBtnSpeed" type="button">Speed</button>
+        <button class="category-btn" id="catBtnDelays" type="button">Delays</button>
+        <button class="category-btn" id="catBtnWord" type="button">Word</button>
+        <button class="category-btn" id="catBtnInput" type="button">Input</button>
+        <button class="category-btn" id="catBtnColors" type="button">Colors</button>
+      </div>
+
+      <div class="category-panel" id="panelSpeed" hidden>
+        <div class="category-panel-header">Speed</div>
+        <div class="category-panel-body">
+          <div class="block">
+            <div class="block-title">
+              WPM
+              <span class="info" role="button" tabindex="0" aria-label="WPM info">!
+                <span class="info-tip">Words Per Minute — base reading speed.</span>
+              </span>
+            </div>
+            <div class="stepper">
+              <button id="wpmDec" type="button" aria-label="Decrease WPM">−</button>
+              <input id="wpm" type="number" min="50" max="1000" step="10" inputmode="numeric">
+              <button id="wpmInc" type="button" aria-label="Increase WPM">+</button>
+            </div>
           </div>
-          <div class="stepper">
-            <button id="alignLeft" type="button">Left</button>
-            <button id="alignCenter" type="button">Center</button>
-            <button id="alignRight" type="button">Right</button>
+
+          <div class="block">
+            <div class="block-title">
+              WPF
+              <span class="info" role="button" tabindex="0" aria-label="WPF info">!
+                <span class="info-tip">
+                  Words Per Flash — how many words are shown at once. Reading speed (WPM) stays word-based, so more words per flash means each flash lasts proportionally longer.
+                  <label class="info-tip-checkbox">
+                    <input type="checkbox" id="stopAtSentenceBreaks">
+                    Stop at sentence breaks
+                  </label>
+                </span>
+              </span>
+            </div>
+            <div class="stepper">
+              <button id="wordsPerFlashDec" type="button" aria-label="Decrease words per flash">−</button>
+              <input id="wordsPerFlash" type="number" min="1" max="6" step="1" inputmode="numeric">
+              <button id="wordsPerFlashInc" type="button" aria-label="Increase words per flash">+</button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="settings">
-          <!-- Fix Hyphens + Highlighter -->
-          <div class="line">
-            <div class="btnwrap">
-              <button id="fixHyphens">Fix Hyphens</button>
-              <button class="info" type="button" aria-label="Fix Hyphens info">!
-                <span class="info-tip">Review and replace hyphen-like cases (line-break pairs and inline hyphens).</span>
+      <div class="category-panel" id="panelDelays" hidden>
+        <div class="category-panel-header">Delays</div>
+        <div class="category-panel-body">
+          <div class="block">
+            <div class="block-title">
+              Long Words
+              <span class="info" role="button" tabindex="0" aria-label="Long Words info">!
+                <span class="info-tip">
+                  Extra delay per character past this many letters or digits.
+                  <div class="info-tip-row">
+                    <span class="info-tip-label">Starts after:</span>
+                    <div class="stepper info-tip-stepper">
+                      <button id="longThreshDec" type="button" aria-label="Decrease long word start length">−</button>
+                      <input id="longThreshold" type="number" min="1" max="20" step="1" inputmode="numeric">
+                      <button id="longThreshInc" type="button" aria-label="Increase long word start length">+</button>
+                    </div>
+                  </div>
+                </span>
+              </span>
+            </div>
+            <div class="stepper">
+              <button id="longDec" type="button" aria-label="Decrease long words slowdown">−</button>
+              <input id="longSlow" type="number" min="0" max="1.50" step="0.01" inputmode="decimal">
+              <button id="longInc" type="button" aria-label="Increase long words slowdown">+</button>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="block-title">
+              Punctuation
+              <span class="info" role="button" tabindex="0" aria-label="Punctuation info">!
+                <span class="info-tip">
+                  Extra delay per punctuation character anywhere in the token.
+                  <div class="info-tip-punc-grid">
+                    <label><input type="checkbox" class="puncMark" value="." checked> Period .</label>
+                    <label><input type="checkbox" class="puncMark" value="," checked> Comma ,</label>
+                    <label><input type="checkbox" class="puncMark" value="?" checked> Question ?</label>
+                    <label><input type="checkbox" class="puncMark" value="!" checked> Exclamation !</label>
+                    <label><input type="checkbox" class="puncMark" value="'" checked> Apostrophe '</label>
+                    <label><input type="checkbox" class="puncMark" value=";" checked> Semicolon ;</label>
+                    <label><input type="checkbox" class="puncMark" value=":" checked> Colon :</label>
+                    <label><input type="checkbox" class="puncMark" value="()" checked> Parentheses ( )</label>
+                  </div>
+                </span>
+              </span>
+            </div>
+            <div class="stepper">
+              <button id="puncDec" type="button" aria-label="Decrease punctuation slowdown">−</button>
+              <input id="puncSlow" type="number" min="0" max="1.50" step="0.01" inputmode="decimal">
+              <button id="puncInc" type="button" aria-label="Increase punctuation slowdown">+</button>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="block-title">
+              Line Breaks
+              <span class="info" role="button" tabindex="0" aria-label="Line Breaks info">!
+                <span class="info-tip">
+                  Extra delay at every line break (set to 0 to turn off). Also ends a Words per Flash group early, same as a sentence break.
+                  <label class="info-tip-checkbox">
+                    <input type="checkbox" id="lineBreakBlank">
+                    Show as blank space
+                  </label>
+                </span>
+              </span>
+            </div>
+            <div class="stepper">
+              <button id="lineBreakDec" type="button" aria-label="Decrease line break slowdown">−</button>
+              <input id="lineBreakSlow" type="number" min="0" max="1.50" step="0.10" inputmode="decimal">
+              <button id="lineBreakInc" type="button" aria-label="Increase line break slowdown">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="category-panel" id="panelWord" hidden>
+        <div class="category-panel-header">Word</div>
+        <div class="category-panel-body">
+          <div class="center-group">
+            <div class="center-label">
+              Word Align
+              <button class="info" type="button" aria-label="Word Align info">!
+                <span class="info-tip">Align the word within the reading pane: left, center, or right.</span>
               </button>
             </div>
-
-            <div class="block">
-              <div class="block-title">
-                Line Breaks
-                <span class="info" role="button" tabindex="0" aria-label="Line Breaks info">!
-                  <span class="info-tip">
-                    Extra delay at every line break (set to 0 to turn off). Also ends a Words per Flash group early, same as a sentence break.
-                    <label class="info-tip-checkbox">
-                      <input type="checkbox" id="lineBreakBlank">
-                      Show as blank space
-                    </label>
-                  </span>
-                </span>
-              </div>
-              <div class="stepper">
-                <button id="lineBreakDec" type="button" aria-label="Decrease line break slowdown">−</button>
-                <input id="lineBreakSlow" type="number" min="0" max="1.50" step="0.10" inputmode="decimal">
-                <button id="lineBreakInc" type="button" aria-label="Increase line break slowdown">+</button>
-              </div>
-            </div>
-
-            <div class="btnwrap">
-              <button id="toggleHighlight" type="button">Highlight: Off</button>
-              <button class="info" type="button" aria-label="Highlighter info">!
-                <span class="info-tip">Highlights the current word in the textarea while playing.</span>
-              </button>
+            <div class="stepper">
+              <button id="alignLeft" type="button">Left</button>
+              <button id="alignCenter" type="button">Center</button>
+              <button id="alignRight" type="button">Right</button>
             </div>
           </div>
 
-          <div class="blocks-row">
-            <div class="block">
-              <div class="block-title">
-                WPM
-                <span class="info" role="button" tabindex="0" aria-label="WPM info">!
-                  <span class="info-tip">Words Per Minute — base reading speed.</span>
-                </span>
-              </div>
-              <div class="stepper">
-                <button id="wpmDec" type="button" aria-label="Decrease WPM">−</button>
-                <input id="wpm" type="number" min="50" max="1000" step="10" inputmode="numeric">
-                <button id="wpmInc" type="button" aria-label="Increase WPM">+</button>
-              </div>
+          <div class="block">
+            <div class="block-title">
+              Word size
+              <span class="info" role="button" tabindex="0" aria-label="Word size info">!
+                <span class="info-tip">Maximum display font size (auto-fit).</span>
+              </span>
             </div>
-
-            <div class="block">
-              <div class="block-title">
-                WPF
-                <span class="info" role="button" tabindex="0" aria-label="WPF info">!
-                  <span class="info-tip">
-                    Words Per Flash — how many words are shown at once. Reading speed (WPM) stays word-based, so more words per flash means each flash lasts proportionally longer.
-                    <label class="info-tip-checkbox">
-                      <input type="checkbox" id="stopAtSentenceBreaks">
-                      Stop at sentence breaks
-                    </label>
-                  </span>
-                </span>
-              </div>
-              <div class="stepper">
-                <button id="wordsPerFlashDec" type="button" aria-label="Decrease words per flash">−</button>
-                <input id="wordsPerFlash" type="number" min="1" max="6" step="1" inputmode="numeric">
-                <button id="wordsPerFlashInc" type="button" aria-label="Increase words per flash">+</button>
-              </div>
+            <div class="stepper">
+              <button id="sizeDec" type="button" aria-label="Decrease word size">−</button>
+              <input id="wordSize" type="number" min="16" max="240" step="6" inputmode="numeric">
+              <button id="sizeInc" type="button" aria-label="Increase word size">+</button>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div class="blocks-row">
-            <div class="block">
-              <div class="block-title">
-                Long Words
-                <span class="info" role="button" tabindex="0" aria-label="Long Words info">!
-                  <span class="info-tip">
-                    Extra delay per character past this many letters or digits.
-                    <div class="info-tip-row">
-                      <span class="info-tip-label">Starts after:</span>
-                      <div class="stepper info-tip-stepper">
-                        <button id="longThreshDec" type="button" aria-label="Decrease long word start length">−</button>
-                        <input id="longThreshold" type="number" min="1" max="20" step="1" inputmode="numeric">
-                        <button id="longThreshInc" type="button" aria-label="Increase long word start length">+</button>
-                      </div>
-                    </div>
-                  </span>
-                </span>
-              </div>
-              <div class="stepper">
-                <button id="longDec" type="button" aria-label="Decrease long words slowdown">−</button>
-                <input id="longSlow" type="number" min="0" max="1.50" step="0.01" inputmode="decimal">
-                <button id="longInc" type="button" aria-label="Increase long words slowdown">+</button>
-              </div>
-            </div>
-
-            <div class="block">
-              <div class="block-title">
-                Punctuation
-                <span class="info" role="button" tabindex="0" aria-label="Punctuation info">!
-                  <span class="info-tip">
-                    Extra delay per punctuation character anywhere in the token.
-                    <div class="info-tip-punc-grid">
-                      <label><input type="checkbox" class="puncMark" value="." checked> Period .</label>
-                      <label><input type="checkbox" class="puncMark" value="," checked> Comma ,</label>
-                      <label><input type="checkbox" class="puncMark" value="?" checked> Question ?</label>
-                      <label><input type="checkbox" class="puncMark" value="!" checked> Exclamation !</label>
-                      <label><input type="checkbox" class="puncMark" value="'" checked> Apostrophe '</label>
-                      <label><input type="checkbox" class="puncMark" value=";" checked> Semicolon ;</label>
-                      <label><input type="checkbox" class="puncMark" value=":" checked> Colon :</label>
-                      <label><input type="checkbox" class="puncMark" value="()" checked> Parentheses ( )</label>
-                    </div>
-                  </span>
-                </span>
-              </div>
-              <div class="stepper">
-                <button id="puncDec" type="button" aria-label="Decrease punctuation slowdown">−</button>
-                <input id="puncSlow" type="number" min="0" max="1.50" step="0.01" inputmode="decimal">
-                <button id="puncInc" type="button" aria-label="Increase punctuation slowdown">+</button>
-              </div>
-            </div>
+      <div class="category-panel" id="panelInput" hidden>
+        <div class="category-panel-header">Input</div>
+        <div class="category-panel-body">
+          <div class="btnwrap">
+            <button id="fixHyphens">Fix Hyphens</button>
+            <button class="info" type="button" aria-label="Fix Hyphens info">!
+              <span class="info-tip">Review and replace hyphen-like cases (line-break pairs and inline hyphens).</span>
+            </button>
           </div>
 
-          <div class="blocks-row">
-            <div class="block color-swatch-block">
-              <div class="block-title">
-                Background
-                <span class="info" role="button" tabindex="0" aria-label="Background info">!
-                  <span class="info-tip">Change app background color.</span>
-                </span>
-              </div>
-              <input id="bgColor" type="color" aria-label="Background color">
-            </div>
-
-            <div class="block">
-              <div class="block-title">
-                Word size
-                <span class="info" role="button" tabindex="0" aria-label="Word size info">!
-                  <span class="info-tip">Maximum display font size (auto-fit).</span>
-                </span>
-              </div>
-              <div class="stepper">
-                <button id="sizeDec" type="button" aria-label="Decrease word size">−</button>
-                <input id="wordSize" type="number" min="16" max="240" step="6" inputmode="numeric">
-                <button id="sizeInc" type="button" aria-label="Increase word size">+</button>
-              </div>
-            </div>
-
-            <div class="block color-swatch-block">
-              <div class="block-title">
-                Content
-                <span class="info" role="button" tabindex="0" aria-label="Content info">!
-                  <span class="info-tip">Change text/UI color.</span>
-                </span>
-              </div>
-              <input id="fgColor" type="color" aria-label="Content color">
-            </div>
+          <div class="btnwrap">
+            <button id="toggleHighlight" type="button">Highlight: Off</button>
+            <button class="info" type="button" aria-label="Highlighter info">!
+              <span class="info-tip">Highlights the current word in the textarea while playing.</span>
+            </button>
           </div>
-
-          <div id="colorNote" class="color-note"></div>
 
           <div class="ext-link-row">
             <a href="#" id="extSettingsLink">Paste Helper Extension (Desktop) &rarr;</a>
           </div>
         </div>
+      </div>
 
+      <div class="category-panel" id="panelColors" hidden>
+        <div class="category-panel-header">Colors</div>
+        <div class="category-panel-body">
+          <div class="block color-swatch-block">
+            <div class="block-title">
+              Background
+              <span class="info" role="button" tabindex="0" aria-label="Background info">!
+                <span class="info-tip">Change app background color.</span>
+              </span>
+            </div>
+            <input id="bgColor" type="color" aria-label="Background color">
+          </div>
+
+          <div class="block color-swatch-block">
+            <div class="block-title">
+              Content
+              <span class="info" role="button" tabindex="0" aria-label="Content info">!
+                <span class="info-tip">Change text/UI color.</span>
+              </span>
+            </div>
+            <input id="fgColor" type="color" aria-label="Content color">
+          </div>
+
+          <div id="colorNote" class="color-note"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1221,6 +1287,61 @@
     })();
 
     /* ---------- Settings Sheet ---------- */
+    /* ---------- Settings category navigation ---------- */
+    const CategoryNav = (() => {
+      const CATEGORIES = ["speed", "delays", "word", "input", "colors"];
+
+      const els = {
+        list: $("categoryList"),
+        panels: {
+          speed: $("panelSpeed"),
+          delays: $("panelDelays"),
+          word: $("panelWord"),
+          input: $("panelInput"),
+          colors: $("panelColors"),
+        },
+        buttons: {
+          speed: $("catBtnSpeed"),
+          delays: $("catBtnDelays"),
+          word: $("catBtnWord"),
+          input: $("catBtnInput"),
+          colors: $("catBtnColors"),
+        },
+      };
+
+      let openCategory = null;
+
+      const hasOpenCategory = () => openCategory !== null;
+
+      const openCat = (name) => {
+        openCategory = name;
+        els.list.hidden = true;
+        CATEGORIES.forEach((c) => { els.panels[c].hidden = c !== name; });
+        // Fix Hyphens/Highlight's matched-width measurement needs real
+        // layout to measure -- it's a no-op while this panel is hidden,
+        // so it has to re-run once the panel actually becomes visible.
+        if (name === "input") Reader.syncFixHyphensHighlightWidth();
+      };
+
+      /* Returns to the category-button list without closing the sheet
+         itself -- the Settings button drives this, not a separate
+         back control on each panel. */
+      const closeCategory = () => {
+        openCategory = null;
+        els.list.hidden = false;
+        CATEGORIES.forEach((c) => { els.panels[c].hidden = true; });
+      };
+
+      const init = () => {
+        CATEGORIES.forEach((c) => {
+          els.buttons[c].addEventListener("click", () => openCat(c));
+        });
+        closeCategory();
+      };
+
+      return { init, hasOpenCategory, closeCategory };
+    })();
+
     const SettingsSheet = (() => {
       const els = {
         sheet: $("settingsSheet"),
@@ -1234,6 +1355,7 @@
         els.sheet.classList.toggle("open", open);
         els.sheet.setAttribute("aria-hidden", open ? "false" : "true");
         els.toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        if (!open) CategoryNav.closeCategory();
       };
 
       const toggle = () => setOpen(!isOpen());
@@ -1242,7 +1364,14 @@
         if (!els.sheet || !els.toggle) return;
         els.toggle.addEventListener("click", (e) => {
           e.stopPropagation();
-          toggle();
+          /* Inside a category, Settings steps back to the category list
+             instead of closing the whole sheet -- only closes the sheet
+             when already at the top-level list. */
+          if (isOpen() && CategoryNav.hasOpenCategory()) {
+            CategoryNav.closeCategory();
+          } else {
+            toggle();
+          }
         });
 
         document.addEventListener("click", (e) => {
@@ -1675,6 +1804,10 @@
           els.fixHyphens.getBoundingClientRect().width,
           els.toggleHighlight.getBoundingClientRect().width
         );
+        // Both report 0 while the Input category panel is hidden (no
+        // layout box yet) -- skip rather than lock that in permanently;
+        // this re-runs once the panel actually becomes visible.
+        if (w === 0) return;
         els.fixHyphens.style.width = w + "px";
         els.toggleHighlight.style.width = w + "px";
       };
@@ -2068,7 +2201,8 @@
         rebuild,
         render,
         getText: () => els.input.value,
-        setText: (t) => (els.input.value = t)
+        setText: (t) => (els.input.value = t),
+        syncFixHyphensHighlightWidth,
       };
     })();
 
@@ -2354,6 +2488,7 @@
     Theme.init();
     Placeholder.init();
     InfoTips.init();
+    CategoryNav.init();
     SettingsSheet.init();
     Reader.init();
     HyphenReview.init();
