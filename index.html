@@ -368,6 +368,14 @@
       font-weight: 800;
     }
 
+    /* Word Align's buttons carry real words, not single glyphs -- undo the
+       square +/- footprint above so "Center" isn't clipped to fit it. */
+    #alignLeft, #alignCenter, #alignRight {
+      width: auto;
+      padding: 0 var(--ctrl-px);
+      font-weight: 400;
+    }
+
     input[type="number"] {
       width: 70px;
       height: var(--ctrl-h);
