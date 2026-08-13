@@ -184,7 +184,12 @@
       position: absolute;
       top: 50%;
       right: 50%;
-      transform: translateY(-50%);
+      /* --pivot-shift (half the pivot letter's own width, set in JS) pulls
+         both boxes left by the same amount, so the pivot letter's own
+         visual CENTER lands on the stage's center line -- without it, the
+         fixed point is the boundary between prefix and pivot (the pivot's
+         left edge), which reads as off-center for wide letters. */
+      transform: translate(calc(-1 * var(--pivot-shift, 0px)), -50%);
       white-space: nowrap;
     }
 
@@ -192,7 +197,7 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      transform: translateY(-50%);
+      transform: translate(calc(-1 * var(--pivot-shift, 0px)), -50%);
       white-space: nowrap;
       display: inline-flex;
     }
@@ -1414,6 +1419,22 @@
         els.menuDefault.hidden = true;
       };
 
+      // Matches both halves to the wider of the two so the divider between
+      // them (and the block's own centered "!" badge above it) lands
+      // exactly in the middle -- "Monospace" and "Default" are different
+      // lengths, and each half's own font choice can change its width too.
+      const syncSplitWidth = () => {
+        els.mono.style.width = "auto";
+        els.default.style.width = "auto";
+        const w = Math.max(els.mono.getBoundingClientRect().width, els.default.getBoundingClientRect().width);
+        // Reports 0 while the Word category panel is hidden (no layout box
+        // yet) -- skip rather than lock that in permanently; re-run once
+        // the panel actually becomes visible.
+        if (w === 0) return;
+        els.mono.style.width = w + "px";
+        els.default.style.width = w + "px";
+      };
+
       const apply = () => {
         els.word.style.fontFamily = category === "mono" ? MONO_FONTS[monoChoice] : DEFAULT_FONTS[defaultChoice];
         els.mono.style.fontFamily = MONO_FONTS[monoChoice];
@@ -1424,6 +1445,7 @@
           b.classList.toggle("selected", b.dataset.font === monoChoice));
         document.querySelectorAll("#fontMenuDefault .font-menu-item").forEach((b) =>
           b.classList.toggle("selected", b.dataset.font === defaultChoice));
+        syncSplitWidth();
       };
 
       const persist = () => {
@@ -1485,7 +1507,7 @@
         window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
       };
 
-      return { init };
+      return { init, syncSplitWidth };
     })();
 
     /* ---------- Placeholder overlay sync ---------- */
@@ -1579,10 +1601,11 @@
         openCategory = name;
         els.list.hidden = true;
         CATEGORIES.forEach((c) => { els.panels[c].hidden = c !== name; });
-        // Fix Hyphens/Highlight's matched-width measurement needs real
-        // layout to measure -- it's a no-op while this panel is hidden,
-        // so it has to re-run once the panel actually becomes visible.
+        // Fix Hyphens/Highlight's and Word Font's matched-width measurements
+        // need real layout to measure -- both are no-ops while their panel
+        // is hidden, so they have to re-run once it actually becomes visible.
         if (name === "input") Reader.syncFixHyphensHighlightWidth();
+        if (name === "word") WordFont.syncSplitWidth();
       };
 
       /* Returns to the category-button list without closing the sheet
@@ -1838,6 +1861,16 @@
         return navigator.clipboard.readText();
       };
 
+      // Shifts the prefix/pivot-group pair left by half the pivot letter's
+      // own width, so its visual center (not just its left edge) sits on
+      // the stage's fixed anchor line. Depends on the current font-size,
+      // so it has to be recomputed any time that changes.
+      const updatePivotShift = () => {
+        if (!focusOn) return;
+        const pivotWidth = els.wordPivot.getBoundingClientRect().width;
+        els.stage.style.setProperty("--pivot-shift", (pivotWidth / 2) + "px");
+      };
+
       const clampFontSize = (maxSize) => {
         let low = 8, high = maxSize, best = low;
         while (low <= high) {
@@ -1850,6 +1883,7 @@
             // stage's own center line -- check each one's outer edge
             // against the stage's matching edge instead of measuring #word
             // as a single box (it has no content box of its own here).
+            updatePivotShift();
             const p = els.wordPrefix.getBoundingClientRect();
             const g = els.wordPivotGroup.getBoundingClientRect();
             fits =
@@ -1998,6 +2032,10 @@
           fitted = clampFontSize(desired);
         }
         els.word.style.fontSize = fitted + "px";
+        // clampFontSize's binary search can leave the shift set for
+        // whichever size it last tried, not necessarily "fitted" -- recompute
+        // once more now that the real final size is in place.
+        updatePivotShift();
 
         const total = Math.ceil((words.length / wpm) * 60);
         const remaining = Math.ceil(((words.length - index) / wpm) * 60);
