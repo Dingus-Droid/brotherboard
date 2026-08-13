@@ -528,32 +528,48 @@
     .hy-row {
       display: grid;
       grid-template-columns: 26px 1.1fr 18px 1fr;
-      gap: 10px;
+      gap: 8px 10px;
       align-items: center;
       padding: 10px;
       border: var(--ctrl-b) solid var(--fg);
       border-radius: 12px;
     }
 
-    .hy-row code {
-      border: var(--ctrl-b) solid var(--fg);
-      padding: 6px 10px;
-      border-radius: 10px;
+    /* Badge sits alone on its own top line, everything else -- checkbox,
+       old word, arrow, new word -- shares the row below it. One border
+       for the whole case, no boxes-within-the-box. */
+    .hy-row .badge {
+      grid-column: 1 / -1;
+      justify-self: start;
+      margin-left: 0;
+    }
+
+    .hy-row .hy-old {
       font-size: 12px;
       overflow-wrap: anywhere;
-      display: block;
+    }
+
+    .hy-row .hy-arrow {
+      opacity: 0.75;
+      font-size: 12px;
     }
 
     .hy-row input[type="text"] {
       width: 100%;
       height: var(--ctrl-h);
-      padding: 0 10px;
-      border: var(--ctrl-b) solid var(--fg);
-      border-radius: var(--ctrl-r);
+      padding: 0 4px;
+      border: none;
+      border-bottom: var(--ctrl-b) solid var(--fg);
+      border-radius: 0;
       font-size: 12px;
-      background: var(--bg);
+      background: transparent;
       color: var(--fg);
       outline: none;
+    }
+
+    .hy-row input[type="text"]:focus {
+      outline: 2px solid var(--fg);
+      outline-offset: 2px;
     }
 
     .badge {
@@ -2140,9 +2156,10 @@
               : `<span class="badge">inline</span>`;
 
             row.innerHTML = `
+              ${badge}
               <input type="checkbox" class="hy-cb" data-idx="${idx}">
-              <div><code class="hy-old"></code>${badge}</div>
-              <div style="opacity:.75;font-size:12px;">→</div>
+              <code class="hy-old"></code>
+              <span class="hy-arrow">→</span>
               <input type="text" class="hy-new" />
             `;
 
