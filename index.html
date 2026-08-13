@@ -16,6 +16,7 @@
     :root {
       --bg: #ffffff;
       --fg: #111111;
+      --focus-color: #e63946;
       --overlay: rgba(0,0,0,.55);
 
       /* === UNIFORM CONTROL SYSTEM === */
@@ -170,6 +171,34 @@
       line-height: 1;
       will-change: transform, font-size;
       color: var(--fg);
+    }
+
+    /* Focus mode: the prefix and pivot+suffix group are pulled out of
+       normal flow and pinned to the stage's own 50% line (not #word's --
+       #word has no content box of its own once its children are absolute,
+       so anchoring to it would collapse to 0x0). Prefix grows leftward off
+       its right edge, the pivot group grows rightward off its left edge,
+       so the pivot letter's screen position stays fixed regardless of
+       word length. */
+    .stage.focus-active #wordPrefix {
+      position: absolute;
+      top: 50%;
+      right: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+    }
+
+    .stage.focus-active #wordPivotGroup {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      display: inline-flex;
+    }
+
+    .stage.focus-active #wordPivot {
+      color: var(--focus-color);
     }
 
     .stage-hint {
@@ -330,6 +359,11 @@
       touch-action: manipulation;
     }
     button:active { transform: translateY(1px); }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    button:disabled:active { transform: none; }
 
     /* Toggle highlight for Word Select button */
     .toggle-on {
@@ -860,7 +894,7 @@
     <!-- 30%: Word -->
     <div class="section framed">
       <div class="stage" id="stage" role="button" tabindex="0" aria-label="Reading pane. Click to play or pause.">
-        <div id="word" class="word"></div>
+        <div id="word" class="word"><span id="wordPrefix"></span><span id="wordPivotGroup"><span id="wordPivot"></span><span id="wordSuffix"></span></span></div>
         <div id="stageHint" class="stage-hint"></div>
       </div>
     </div>
@@ -1030,6 +1064,13 @@
               <button id="sizeInc" type="button" aria-label="Increase word size">+</button>
             </div>
           </div>
+
+          <div class="btnwrap">
+            <button id="toggleFocus" type="button">Focus: Off</button>
+            <button class="info" type="button" aria-label="Focus info">!
+              <span class="info-tip">Highlights one letter at a fixed position so your eye doesn't have to re-find the middle of each word. Requires Word Align set to Center -- turning Focus on switches to Center automatically and locks out Left/Right while it's on.</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1077,6 +1118,16 @@
               </span>
             </div>
             <input id="fgColor" type="color" aria-label="Content color">
+          </div>
+
+          <div class="block color-swatch-block">
+            <div class="block-title">
+              Focus
+              <span class="info" role="button" tabindex="0" aria-label="Focus color info">!
+                <span class="info-tip">Color of the highlighted letter when Focus is on.</span>
+              </span>
+            </div>
+            <input id="focusColor" type="color" aria-label="Focus color">
           </div>
 
           <div id="colorNote" class="color-note"></div>
@@ -1166,9 +1217,10 @@
 
     /* ---------- Theme (BG/FG) ---------- */
     const Theme = (() => {
-      const els = { bg: $("bgColor"), fg: $("fgColor"), note: $("colorNote") };
+      const els = { bg: $("bgColor"), fg: $("fgColor"), focus: $("focusColor"), note: $("colorNote") };
       const KEY_BG = "bgColor";
       const KEY_FG = "fgColor";
+      const KEY_FOCUS = "focusColor";
       let lastGood = { bg: "#ffffff", fg: "#111111" };
 
       const norm = (hex) => String(hex || "").trim().toLowerCase();
@@ -1213,6 +1265,14 @@
 
         els.bg.addEventListener("input", () => applyIfValid(els.bg.value, els.fg.value, "bg"));
         els.fg.addEventListener("input", () => applyIfValid(els.bg.value, els.fg.value, "fg"));
+
+        const savedFocus = localStorage.getItem(KEY_FOCUS) ?? "#e63946";
+        els.focus.value = savedFocus;
+        document.documentElement.style.setProperty("--focus-color", savedFocus);
+        els.focus.addEventListener("input", () => {
+          localStorage.setItem(KEY_FOCUS, norm(els.focus.value));
+          document.documentElement.style.setProperty("--focus-color", els.focus.value);
+        });
       };
 
       return { init };
@@ -1411,6 +1471,12 @@
         alignCenter: $("alignCenter"),
         alignRight: $("alignRight"),
 
+        toggleFocus: $("toggleFocus"),
+        wordPrefix: $("wordPrefix"),
+        wordPivot: $("wordPivot"),
+        wordPivotGroup: $("wordPivotGroup"),
+        wordSuffix: $("wordSuffix"),
+
         prevWord: $("prevWord"),
         nextWord: $("nextWord"),
         reset: $("reset"),
@@ -1457,6 +1523,7 @@
       let timeoutId = null;
       let playing = false;
       let wordAlign = "center";
+      let focusOn = false;
       let highlightOn = false;
       let wordSelectArmed = false;
       let appOwnsSelection = false;
@@ -1563,9 +1630,23 @@
         while (low <= high) {
           const mid = (low + high) >> 1;
           els.word.style.fontSize = mid + "px";
-          const w = els.word.getBoundingClientRect();
           const s = els.stage.getBoundingClientRect();
-          if (w.width <= s.width - SAFETY && w.height <= s.height - SAFETY) {
+          let fits;
+          if (focusOn) {
+            // Focus mode splits the word across two boxes anchored to the
+            // stage's own center line -- check each one's outer edge
+            // against the stage's matching edge instead of measuring #word
+            // as a single box (it has no content box of its own here).
+            const p = els.wordPrefix.getBoundingClientRect();
+            const g = els.wordPivotGroup.getBoundingClientRect();
+            fits =
+              p.left >= s.left + SAFETY && g.right <= s.right - SAFETY &&
+              p.height <= s.height - SAFETY && g.height <= s.height - SAFETY;
+          } else {
+            const w = els.word.getBoundingClientRect();
+            fits = w.width <= s.width - SAFETY && w.height <= s.height - SAFETY;
+          }
+          if (fits) {
             best = mid; low = mid + 1;
           } else {
             high = mid - 1;
@@ -1658,9 +1739,27 @@
         scrollToSelection(start, end);
       };
 
+      /* Routes every word/blank render through here instead of setting
+         els.word.textContent directly, since Focus mode needs the text
+         split into a prefix/pivot/suffix so the pivot letter can be pinned
+         to a fixed screen position regardless of word length. */
+      const setWordDisplay = (text) => {
+        text = text || "";
+        if (!focusOn || !text) {
+          els.wordPrefix.textContent = text;
+          els.wordPivot.textContent = "";
+          els.wordSuffix.textContent = "";
+          return;
+        }
+        const idx = Math.floor((text.length - 1) / 2);
+        els.wordPrefix.textContent = text.slice(0, idx);
+        els.wordPivot.textContent = text.slice(idx, idx + 1);
+        els.wordSuffix.textContent = text.slice(idx + 1);
+      };
+
       const render = () => {
         if (!words.length) {
-          els.word.textContent = "";
+          setWordDisplay("");
           els.progressTime.textContent = "";
           return;
         }
@@ -1669,7 +1768,7 @@
         const desired = Number(els.size.value) || 48;
 
         const groupEnd = computeGroupEnd(index);
-        els.word.textContent = words.slice(index, groupEnd).join(" ");
+        setWordDisplay(words.slice(index, groupEnd).join(" "));
         els.word.style.fontSize = clampFontSize(desired) + "px";
 
         const total = Math.ceil((words.length / wpm) * 60);
@@ -1776,7 +1875,7 @@
         timeoutId = setTimeout(() => {
           if (!playing) return;
           if (showBlank) {
-            els.word.textContent = "";
+            setWordDisplay("");
             timeoutId = setTimeout(() => {
               if (!playing) return;
               advance();
@@ -1835,6 +1934,20 @@
         wordAlign = value;
         localStorage.setItem("wordAlign", wordAlign);
         applyWordAlign();
+      };
+
+      const setFocusButton = () => {
+        els.toggleFocus.textContent = `Focus: ${focusOn ? "On" : "Off"}`;
+      };
+
+      /* Focus's fixed-anchor technique only has symmetric room to grow the
+         prefix/suffix when the word is centered -- Left/Right leaves no
+         room on one side, so they're locked out while Focus is on. */
+      const applyFocus = () => {
+        els.stage.classList.toggle("focus-active", focusOn);
+        els.alignLeft.disabled = focusOn;
+        els.alignRight.disabled = focusOn;
+        setFocusButton();
       };
 
       const setWordSelectButton = () => {
@@ -1900,7 +2013,13 @@
         });
 
         wordAlign = localStorage.getItem("wordAlign") ?? "center";
+        focusOn = (localStorage.getItem("focusOn") ?? "0") === "1";
+        if (focusOn && wordAlign !== "center") {
+          wordAlign = "center";
+          localStorage.setItem("wordAlign", wordAlign);
+        }
         applyWordAlign();
+        applyFocus();
 
         highlightOn = (localStorage.getItem("highlightOn") ?? "0") === "1";
         setHighlightButton();
@@ -2124,6 +2243,14 @@
         els.alignLeft.addEventListener("click", () => setWordAlign("left"));
         els.alignCenter.addEventListener("click", () => setWordAlign("center"));
         els.alignRight.addEventListener("click", () => setWordAlign("right"));
+
+        els.toggleFocus.addEventListener("click", () => {
+          focusOn = !focusOn;
+          localStorage.setItem("focusOn", focusOn ? "1" : "0");
+          if (focusOn && wordAlign !== "center") setWordAlign("center");
+          applyFocus();
+          render();
+        });
 
         els.toggleHighlight.addEventListener("click", () => {
           highlightOn = !highlightOn;
