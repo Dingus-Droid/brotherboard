@@ -2001,7 +2001,17 @@
           els.wordSuffix.textContent = "";
           return;
         }
-        const idx = Math.floor((text.length - 1) / 2);
+        // Punctuation shouldn't compete for the middle "slot" -- picking
+        // the pivot from letters/digits only keeps short words (often
+        // mostly punctuation once you count a trailing mark) from landing
+        // on a period or comma instead of an actual letter.
+        const letterPositions = [];
+        for (let i = 0; i < text.length; i++) {
+          if (/[\p{L}\p{N}]/u.test(text[i])) letterPositions.push(i);
+        }
+        const idx = letterPositions.length
+          ? letterPositions[Math.floor((letterPositions.length - 1) / 2)]
+          : Math.floor((text.length - 1) / 2);
         els.wordPrefix.textContent = text.slice(0, idx);
         els.wordPivot.textContent = text.slice(idx, idx + 1);
         els.wordSuffix.textContent = text.slice(idx + 1);
