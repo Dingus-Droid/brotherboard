@@ -1316,6 +1316,65 @@
       const escHtml = (s) =>
         String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+      /* Converts clipboard HTML into plain text ourselves, inserting blank
+         lines at paragraph/list/div boundaries and single line breaks at
+         <br>, instead of relying on whatever flattened plain-text fallback
+         the OS clipboard already produced (which is often what collapses
+         real paragraph structure into one block). Parsing happens in a
+         detached document -- nothing from the clipboard is ever inserted
+         into the live page, so this can't execute embedded scripts. */
+      const BLOCK_TAGS = new Set([
+        "P", "DIV", "LI", "TR", "H1", "H2", "H3", "H4", "H5", "H6",
+        "BLOCKQUOTE", "PRE", "SECTION", "ARTICLE", "HEADER", "FOOTER",
+        "UL", "OL", "TABLE", "TBODY", "THEAD",
+      ]);
+
+      const htmlToPlainText = (html) => {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        let out = "";
+        const walk = (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            out += node.textContent.replace(/\s+/g, " ");
+            return;
+          }
+          if (node.nodeType !== Node.ELEMENT_NODE) return;
+          if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return;
+          if (node.tagName === "BR") {
+            out += "\n";
+            return;
+          }
+          const isBlock = BLOCK_TAGS.has(node.tagName);
+          node.childNodes.forEach(walk);
+          if (isBlock) out += "\n\n";
+        };
+        doc.body.childNodes.forEach(walk);
+        return out.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n").trim();
+      };
+
+      /* Prefers the clipboard's HTML representation (converted ourselves,
+         above) for better paragraph preservation; falls back to plain
+         readText() -- today's behavior -- the moment anything about that
+         isn't available: unsupported browser, no HTML on the clipboard,
+         permission denied, or an empty conversion result. */
+      const readClipboardText = async () => {
+        try {
+          if (navigator.clipboard.read) {
+            const items = await navigator.clipboard.read();
+            for (const item of items) {
+              if (item.types.includes("text/html")) {
+                const blob = await item.getType("text/html");
+                const html = await blob.text();
+                const converted = htmlToPlainText(html);
+                if (converted) return converted;
+              }
+            }
+          }
+        } catch (err) {
+          // Falls through to the plain-text path below.
+        }
+        return navigator.clipboard.readText();
+      };
+
       const clampFontSize = (maxSize) => {
         let low = 8, high = maxSize, best = low;
         while (low <= high) {
@@ -1633,7 +1692,7 @@
           const selEnd = els.input.selectionEnd;
 
           try {
-            const clip = await navigator.clipboard.readText();
+            const clip = await readClipboardText();
             els.input.readOnly = false;
             els.input.focus({ preventScroll: true });
             requestAnimationFrame(() => {
