@@ -1756,6 +1756,7 @@
       let index = 0;
       let timeoutId = null;
       let playing = false;
+      let wakeLock = null;
       let wordAlign = "center";
       let focusOn = false;
       let normalizeSize = false;
@@ -2074,6 +2075,30 @@
         }
       };
 
+      // Keeps the screen from timing out mid-read (RSVP has no scrolling or
+      // tapping to reset the OS idle timer). Unsupported browsers (Safari
+      // on iOS, as of this writing) just skip it silently -- reading still
+      // works, the screen can just fall asleep like today.
+      const requestWakeLock = () => {
+        if (!("wakeLock" in navigator)) return;
+        navigator.wakeLock.request("screen").then((lock) => {
+          wakeLock = lock;
+          // The browser releases the lock on its own whenever the tab is
+          // backgrounded -- clear our reference so the visibilitychange
+          // handler below knows to re-request rather than assume it's
+          // still held.
+          wakeLock.addEventListener("release", () => { wakeLock = null; });
+        }).catch(() => {
+          // Can be denied (e.g. battery saver mode) -- not fatal.
+        });
+      };
+
+      const releaseWakeLock = () => {
+        if (!wakeLock) return;
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      };
+
       const stop = () => {
         playing = false;
         clearTimeout(timeoutId);
@@ -2081,6 +2106,7 @@
         els.input.readOnly = false;
         updateStageHint();
         syncSizeFieldToAutoCap();
+        releaseWakeLock();
       };
 
       const wordLength = (w) => (w.match(/[\p{L}\p{N}]/gu) || []).length;
@@ -2577,6 +2603,7 @@
           if (highlightOn) applyHighlight();
           scheduleNext();
           updateStageHint();
+          requestWakeLock();
         };
 
         els.stage.addEventListener("click", () => {
@@ -2616,6 +2643,16 @@
         });
 
         window.addEventListener("resize", render);
+
+        // Backgrounding the tab (switching apps, locking the phone) always
+        // releases the wake lock on its own -- re-acquire it on return if
+        // playback is still going, otherwise the screen can time out again
+        // the next time it's briefly backgrounded and restored mid-read.
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible" && playing && !wakeLock) {
+            requestWakeLock();
+          }
+        });
 
         /* Lets the browser extension (or anything else) open the app with
            starting text pre-loaded, e.g. dingus-droid.github.io/brotherboard/?text=... */
