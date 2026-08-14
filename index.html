@@ -67,8 +67,14 @@
       overflow-y: auto;
       /* Reserves the scrollbar's width whether or not it's currently
          showing, so centered content doesn't shift sideways the moment
-         a scrollbar appears (e.g. opening Settings on a short window). */
+         a scrollbar appears (e.g. opening Settings on a short window).
+         "both-edges" reserves the same width on the other side too, so
+         content stays truly centered instead of sitting half a gutter
+         off to the left. The plain "stable" line first is the fallback
+         for browsers that don't know "both-edges" -- they ignore the
+         second declaration and keep the no-shift behavior. */
       scrollbar-gutter: stable;
+      scrollbar-gutter: stable both-edges;
       background: var(--bg);
       color: var(--fg);
     }
@@ -277,7 +283,17 @@
     .settings-body {
       flex: 1 1 auto;
       overflow: auto;
-      padding: 14px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+      /* No top padding here: the sticky category header has to be able to
+         sit flush with the top of the scrollport, and a sticky box is
+         clamped by its *margin* box -- so cancelling a top padding with a
+         negative top margin would park the header that far too low and
+         leave a strip of content showing above it. The 14px is given to
+         the scrolling children instead. */
+      padding: 0 14px calc(16px + env(safe-area-inset-bottom, 0px));
+      /* Same treatment as .app -- settings content is centered, so the
+         scrollbar appearing must not drag it sideways. */
+      scrollbar-gutter: stable;
+      scrollbar-gutter: stable both-edges;
     }
 
     /* ===== SETTINGS CATEGORY NAVIGATION ===== */
@@ -290,12 +306,31 @@
       flex-direction: column;
       align-items: center;
       gap: 16px;
+      /* Carries the top inset that .settings-body used to supply. */
+      padding-top: 14px;
     }
 
     .category-btn { min-width: 160px; }
 
     .category-panel {
       text-align: center;
+    }
+
+    /* Pins the open category's own header directly beneath the Settings
+       button, so both stay put and only the settings themselves scroll.
+       The negative side margins bleed the background band out through
+       .settings-body's padding, so rows scroll underneath it cleanly
+       rather than appearing beside it. */
+    .category-panel-headwrap {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--bg);
+      /* Side margins bleed the band out through .settings-body's horizontal
+         padding so rows scroll underneath it rather than beside it. No top
+         margin -- see the note on .settings-body's padding. */
+      margin: 0 -14px;
+      padding: 14px 14px 16px;
     }
 
     .category-panel-header {
@@ -306,7 +341,9 @@
          Settings takes at this point. */
       min-width: 160px;
       font-weight: 650;
-      margin-bottom: 16px;
+      /* The 16px gap to the first setting lives on the wrapper's padding
+         now, so the band covers it while stuck. */
+      margin-bottom: 0;
     }
 
     .category-panel-body {
@@ -543,6 +580,8 @@
     .modal-body {
       padding: 12px 14px;
       overflow: auto;
+      scrollbar-gutter: stable;
+      scrollbar-gutter: stable both-edges;
     }
 
     .modal-controls {
@@ -678,12 +717,9 @@
       width: 22px;
       height: 22px;
       padding: 0;
-      /* No border/background of its own -- the gear SVG injected by
-         InfoTips.init() draws both, so the badge reads as a gear instead
-         of a plain circle. The 22px box is kept exactly as it was so
-         nothing around it reflows. */
-      border: 0;
-      background: none;
+      border: var(--ctrl-b) solid var(--fg);
+      border-radius: 999px;
+      background: var(--bg);
       color: var(--fg);
       font-weight: 800;
       font-size: 13px;
@@ -693,6 +729,15 @@
       cursor: pointer;
       user-select: none;
       touch-action: manipulation;
+    }
+
+    /* Only badges whose popover actually holds a control you can change
+       wear a gear; the rest stay plain circles. The gear SVG draws its own
+       outline and fill, so the CSS circle comes off for those. */
+    .info.has-gear {
+      border: 0;
+      border-radius: 0;
+      background: none;
     }
 
     /* Drawn larger than the 22px layout box and allowed to overflow it, so
@@ -1027,7 +1072,9 @@
       </div>
 
       <div class="category-panel" id="panelSpeed" hidden>
-        <button class="category-panel-header" type="button">Speed</button>
+        <div class="category-panel-headwrap">
+          <button class="category-panel-header" type="button">Speed</button>
+        </div>
         <div class="category-panel-body">
           <div class="block">
             <div class="block-title">
@@ -1066,7 +1113,9 @@
       </div>
 
       <div class="category-panel" id="panelDelays" hidden>
-        <button class="category-panel-header" type="button">Delays</button>
+        <div class="category-panel-headwrap">
+          <button class="category-panel-header" type="button">Delays</button>
+        </div>
         <div class="category-panel-body">
           <div class="block">
             <div class="block-title">
@@ -1141,7 +1190,9 @@
       </div>
 
       <div class="category-panel" id="panelWord" hidden>
-        <button class="category-panel-header" type="button">Word</button>
+        <div class="category-panel-headwrap">
+          <button class="category-panel-header" type="button">Word</button>
+        </div>
         <div class="category-panel-body">
           <div class="center-group">
             <div class="center-label">
@@ -1214,7 +1265,9 @@
       </div>
 
       <div class="category-panel" id="panelInput" hidden>
-        <button class="category-panel-header" type="button">Input</button>
+        <div class="category-panel-headwrap">
+          <button class="category-panel-header" type="button">Input</button>
+        </div>
         <div class="category-panel-body">
           <div class="btnwrap">
             <button id="fixHyphens">Fix Hyphens</button>
@@ -1237,7 +1290,9 @@
       </div>
 
       <div class="category-panel" id="panelColors" hidden>
-        <button class="category-panel-header" type="button">Colors</button>
+        <div class="category-panel-headwrap">
+          <button class="category-panel-header" type="button">Colors</button>
+        </div>
         <div class="category-panel-body">
           <div class="block color-swatch-block">
             <div class="block-title">
@@ -1560,6 +1615,31 @@
       return { init, sync };
     })();
 
+    /* ---------- Number fields: clicking one selects the whole value ---------- */
+    const NumberFields = (() => {
+      const init = () => {
+        document.querySelectorAll('input[type="number"]').forEach((input) => {
+          input.addEventListener("focus", () => input.select());
+
+          /* A mouse click focuses the field and then collapses the selection
+             to a caret, undoing the select() above. Taking over the first
+             mousedown (while the field isn't focused yet) keeps the whole
+             value selected so typing replaces it. Clicking an already
+             focused field still places a caret normally, for editing part
+             of a value. Safe to preempt here because the native spinner
+             buttons are turned off in CSS -- there's nothing else inside
+             the field to click. */
+          input.addEventListener("mousedown", (e) => {
+            if (document.activeElement === input) return;
+            e.preventDefault();
+            input.focus();
+          });
+        });
+      };
+
+      return { init };
+    })();
+
     /* ---------- Info popovers (click toggle; outside click closes) ---------- */
     const InfoTips = (() => {
       /* Heroicons "cog-8-tooth" (MIT), outer silhouette only -- its center
@@ -1594,7 +1674,17 @@
           span.textContent = glyph;
           btn.replaceChild(span, node);
         });
-        btn.insertBefore(makeGear(), btn.firstChild);
+
+        /* A gear promises "there's something in here you can change", so it
+           only goes on badges whose popover really does hold a control.
+           Decided by inspecting the tip rather than from a hardcoded list,
+           so adding a control to a tip later upgrades its badge on its own
+           instead of silently drifting out of sync. */
+        const tip = btn.querySelector(".info-tip");
+        if (tip && tip.querySelector("input, select, textarea, button")) {
+          btn.classList.add("has-gear");
+          btn.insertBefore(makeGear(), btn.firstChild);
+        }
       };
       const closeAll = () => document.querySelectorAll(".info.open").forEach(b => b.classList.remove("open"));
 
@@ -3057,6 +3147,7 @@
 
     Theme.init();
     WordFont.init();
+    NumberFields.init();
     Placeholder.init();
     InfoTips.init();
     CategoryNav.init();
