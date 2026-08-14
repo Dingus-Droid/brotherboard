@@ -330,7 +330,13 @@
          padding so rows scroll underneath it rather than beside it. No top
          margin -- see the note on .settings-body's padding. */
       margin: 0 -14px;
-      padding: 14px 14px 16px;
+      /* The 16px gap to the first setting is a MARGIN, not padding: padding
+         would sit inside the opaque band, and a badge straddling the first
+         control's top border reaches ~11px above it -- far enough to be
+         painted over and sliced in half. As a margin the band's background
+         stops at the header, leaving the badge in the clear. */
+      margin-bottom: 16px;
+      padding: 14px 14px 0;
     }
 
     .category-panel-header {
@@ -620,7 +626,8 @@
     .ext-link-row {
       width: 100%;
       text-align: center;
-      margin-top: 4px;
+      /* No margin of its own -- the category list's own 16px flex gap
+         spaces it off the last category button. */
       font-size: 13px;
     }
 
@@ -1069,6 +1076,12 @@
         <button class="category-btn" id="catBtnWord" type="button">Word</button>
         <button class="category-btn" id="catBtnInput" type="button">Input</button>
         <button class="category-btn" id="catBtnColors" type="button">Colors</button>
+
+        <!-- Belongs to Settings as a whole rather than to any one category,
+             so it lives on the category list instead of inside Input. -->
+        <div class="ext-link-row">
+          <a href="#" id="extSettingsLink">Paste Helper Extension (Desktop) &rarr;</a>
+        </div>
       </div>
 
       <div class="category-panel" id="panelSpeed" hidden>
@@ -1281,10 +1294,6 @@
             <button class="info" type="button" aria-label="Highlighter info">!
               <span class="info-tip">Highlights the current word in the textarea while playing.</span>
             </button>
-          </div>
-
-          <div class="ext-link-row">
-            <a href="#" id="extSettingsLink">Paste Helper Extension (Desktop) &rarr;</a>
           </div>
         </div>
       </div>
@@ -1747,11 +1756,20 @@
           colors: $("catBtnColors"),
         },
         headers: Array.from(document.querySelectorAll(".category-panel-header")),
+        body: document.querySelector(".settings-body"),
       };
 
       let openCategory = null;
 
       const hasOpenCategory = () => openCategory !== null;
+
+      /* Every view swap starts at the top. Without this the scroll position
+         carries over from whatever was showing before, so stepping back out
+         of a long category can land you partway down the list with the first
+         entry cut off above the fold. */
+      const scrollToTop = () => {
+        if (els.body) els.body.scrollTop = 0;
+      };
 
       const openCat = (name) => {
         openCategory = name;
@@ -1762,6 +1780,7 @@
         // is hidden, so they have to re-run once it actually becomes visible.
         if (name === "input") Reader.syncFixHyphensHighlightWidth();
         if (name === "word") WordFont.syncSplitWidth();
+        scrollToTop();
       };
 
       /* Returns to the category-button list without closing the sheet
@@ -1771,6 +1790,7 @@
         openCategory = null;
         els.list.hidden = false;
         CATEGORIES.forEach((c) => { els.panels[c].hidden = true; });
+        scrollToTop();
       };
 
       const init = () => {
