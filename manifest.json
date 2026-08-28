@@ -6,6 +6,15 @@
   "scope": "/brotherboard/",
   "display": "standalone",
   "orientation": "any",
+  "share_target": {
+    "action": "/brotherboard/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [

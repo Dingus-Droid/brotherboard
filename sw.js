@@ -1,4 +1,6 @@
-const CACHE = 'rsvp4dingus-v3';
+/* Bumped so the activate handler clears out v3 -- both to pick up the new
+   manifest and to sweep away any per-share entries it accumulated. */
+const CACHE = 'rsvp4dingus-v4';
 
 const ASSETS = [
   '/brotherboard/',
@@ -31,17 +33,27 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
 
+  /* Shared text arrives as a one-off URL like /brotherboard/?text=...
+     Caching those would stash a separate copy of the whole app for every
+     selection anyone ever shares, growing without limit. Serve them
+     without saving, and offline fall back to the plain app shell, since
+     the exact shared URL will never be in the cache. */
+  const url = new URL(e.request.url);
+  const isSharedText = ['text', 'url', 'title'].some(k => url.searchParams.has(k));
+
   e.respondWith(
     fetch(e.request, { cache: 'no-store' })
       .then(res => {
-        const copy = res.clone();
+        if (!isSharedText) {
+          const copy = res.clone();
 
-        caches.open(CACHE).then(cache => {
-          cache.put(e.request, copy);
-        });
+          caches.open(CACHE).then(cache => {
+            cache.put(e.request, copy);
+          });
+        }
 
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() => caches.match(isSharedText ? '/brotherboard/' : e.request))
   );
 });
