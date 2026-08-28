@@ -623,6 +623,18 @@
       line-height: 1.4;
     }
 
+    /* Device picker: same stacked, centered, 16px-gap rhythm as the
+       Settings category list, so the two read as the same kind of menu. */
+    .ext-device-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-top: 14px;
+    }
+
+    .ext-device-btn { min-width: 180px; }
+
     .ext-link-row {
       width: 100%;
       text-align: center;
@@ -1080,7 +1092,7 @@
         <!-- Belongs to Settings as a whole rather than to any one category,
              so it lives on the category list instead of inside Input. -->
         <div class="ext-link-row">
-          <a href="#" id="extSettingsLink">Paste Helper Extension (Desktop) &rarr;</a>
+          <a href="#" id="extSettingsLink">Send Text From Your Browser &rarr;</a>
         </div>
       </div>
 
@@ -1369,22 +1381,28 @@
     </div>
   </div>
 
-  <!-- Paste Helper Extension Modal -->
+  <!-- Send Text From Your Browser Modal -->
   <div id="extModal" class="modal" aria-hidden="true">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="extTitle">
       <div class="modal-header">
-        <h2 id="extTitle">Paste Helper Extension</h2>
+        <h2 id="extTitle">Send Text From Your Browser</h2>
         <button id="extClose" class="smallbtn" type="button">Close</button>
       </div>
 
       <div class="modal-body">
         <div id="extIntro" class="ext-copy">
-          <p>Right-click text you've selected on any website and send it straight to RSVP4Dingus &mdash; no repeated "allow paste" prompts.</p>
-          <p><b>Desktop browsers only</b> (Chrome or Edge). This does not work on iPhone or iPad.</p>
+          <p>Highlight text on any website and send it straight here, without copying and pasting by hand.</p>
+          <p>Setup differs per device. Which are you on?</p>
+          <div class="ext-device-list">
+            <button class="ext-device-btn" id="extPickDesktop" type="button">Desktop / Laptop</button>
+            <button class="ext-device-btn" id="extPickAndroid" type="button">Android</button>
+            <button class="ext-device-btn" id="extPickIphone" type="button">iPhone</button>
+          </div>
         </div>
 
-        <div id="extSteps" class="ext-copy" style="display:none;">
-          <p>This isn't published to the Chrome Web Store yet, so installing it takes a few manual steps:</p>
+        <div id="extStepsDesktop" class="ext-copy" style="display:none;">
+          <p>Chrome and Edge on Windows or Mac. Once set up, right-click any highlighted text and choose <b>Paste to RSVP4Dingus</b>.</p>
+          <p>This isn't in the Chrome Web Store yet, so installing takes a few manual steps:</p>
           <ol>
             <li><a id="extDownload" href="extension/rsvp4dingus-paste-helper.zip" download>Download rsvp4dingus-paste-helper.zip</a></li>
             <li>Unzip the downloaded file.</li>
@@ -1393,15 +1411,42 @@
             <li>Click <b>Load unpacked</b> and select the unzipped folder &mdash; the one that directly contains a file named <code>manifest.json</code>, not a folder around it.</li>
           </ol>
           <p>Chrome/Edge may warn that this is an unverified extension &mdash; expected for a personal, unpublished one, and safe to proceed.</p>
+          <p><b>Safari and Firefox aren't supported</b> &mdash; they need a separately built version.</p>
+        </div>
+
+        <div id="extStepsAndroid" class="ext-copy" style="display:none;">
+          <p>You must install RSVP4Dingus to your home screen first. Android only offers it as a place to send text once it's installed &mdash; this is the step people miss.</p>
+          <ol>
+            <li>In Chrome, open this site's menu (&#8942;) and tap <b>Install app</b> or <b>Add to Home screen</b>.</li>
+            <li>Open the app once from your home screen.</li>
+            <li>Now highlight text on any website, tap <b>Share</b>, and pick <b>RSVP4Dingus</b>.</li>
+          </ol>
+          <p><b>Already had it installed?</b> Android caches the old setup and refreshes roughly once a day, so the share option may not appear right away. Removing it from your home screen and re-installing forces it.</p>
+          <p>Sharing a whole page instead of a selection sends a link rather than the article text &mdash; highlight the part you want to read.</p>
+        </div>
+
+        <div id="extStepsIphone" class="ext-copy" style="display:none;">
+          <p>Apple doesn't let web apps into the share sheet, so this uses a Shortcut instead. Built once, it stays in your share sheet for good.</p>
+          <ol>
+            <li>Open Apple's <b>Shortcuts</b> app and tap <b>+</b> to make a new one.</li>
+            <li>Tap <b>Add Action</b>, search for <b>URL</b>, and add it. Set it to:<br>
+              <code>https://dingus-droid.github.io/brotherboard/?text=</code></li>
+            <li>Add a second action: search <b>Text</b>, choose <b>URL Encode</b>, and set it to encode <b>Shortcut Input</b>.</li>
+            <li>Combine them so the encoded text lands on the end of that address, then add an <b>Open URLs</b> action.</li>
+            <li>Open the shortcut's settings (&#9432;), turn on <b>Show in Share Sheet</b>, and set it to accept <b>Text</b>.</li>
+            <li>Name it <b>Read in RSVP4Dingus</b>.</li>
+          </ol>
+          <p>Then: highlight text anywhere, tap <b>Share</b>, and pick <b>Read in RSVP4Dingus</b>.</p>
+          <p>Fiddly to build, but you only do it once &mdash; and it can be shared with friends as a link so they just tap to add it.</p>
         </div>
       </div>
 
       <div class="modal-footer" id="extChoiceFooter">
         <button id="extNever" class="smallbtn" type="button">Never</button>
         <button id="extLater" class="smallbtn" type="button">Later</button>
-        <button id="extNow" class="smallbtn" type="button">Install Now</button>
       </div>
       <div class="modal-footer" id="extDoneFooter" style="display:none;">
+        <button id="extBack" class="smallbtn" type="button">Back</button>
         <button id="extDone" class="smallbtn" type="button">Done</button>
       </div>
     </div>
@@ -2861,9 +2906,14 @@
           }
         });
 
-        /* Lets the browser extension (or anything else) open the app with
-           starting text pre-loaded, e.g. dingus-droid.github.io/brotherboard/?text=... */
-        const startingText = new URLSearchParams(window.location.search).get("text");
+        /* Lets the browser extension, Android's share sheet, or anything else
+           open the app with starting text pre-loaded, e.g.
+           dingus-droid.github.io/brotherboard/?text=...
+           Android sends a highlighted selection as "text", but sharing a whole
+           page instead sends a link as "url" (sometimes with only a title), so
+           fall back through those rather than opening empty-handed. */
+        const params = new URLSearchParams(window.location.search);
+        const startingText = params.get("text") || params.get("url") || params.get("title");
         if (startingText) {
           els.input.value = startingText;
           Placeholder.sync();
@@ -3086,39 +3136,51 @@
       return { init };
     })();
 
-    /* ---------- Paste Helper Extension prompt ---------- */
+    /* ---------- "Send Text From Your Browser" setup prompt ---------- */
     const ExtensionPrompt = (() => {
       const KEY = "extensionPromptChoice";
-      // Captured now (module init time), before Reader.init() strips
-      // ?text= from the URL -- if it's present, this tab was just opened
-      // by the extension itself, which is already installed and working,
-      // so don't cover the freshly-pasted text with an install nag.
-      const openedWithStartingText = new URLSearchParams(window.location.search).get("text") !== null;
+      // Captured now (module init time), before Reader.init() strips these
+      // off the URL -- if any is present, this tab was opened by the
+      // extension or a share, both of which are already working, so don't
+      // cover the freshly-delivered text with a setup nag.
+      const openedWithStartingText = ["text", "url", "title"]
+        .some((k) => new URLSearchParams(window.location.search).get(k) !== null);
 
       const els = {
         modal: $("extModal"),
         close: $("extClose"),
         intro: $("extIntro"),
-        steps: $("extSteps"),
         choiceFooter: $("extChoiceFooter"),
         doneFooter: $("extDoneFooter"),
         never: $("extNever"),
         later: $("extLater"),
-        now: $("extNow"),
+        back: $("extBack"),
         done: $("extDone"),
         settingsLink: $("extSettingsLink"),
       };
 
+      /* One pane of instructions per device, picked from the intro view. */
+      const DEVICES = {
+        desktop: { pane: $("extStepsDesktop"), button: $("extPickDesktop") },
+        android: { pane: $("extStepsAndroid"), button: $("extPickAndroid") },
+        iphone: { pane: $("extStepsIphone"), button: $("extPickIphone") },
+      };
+
+      const hideAllPanes = () => {
+        Object.values(DEVICES).forEach((d) => { d.pane.style.display = "none"; });
+      };
+
       const showIntroView = () => {
         els.intro.style.display = "";
-        els.steps.style.display = "none";
+        hideAllPanes();
         els.choiceFooter.style.display = "";
         els.doneFooter.style.display = "none";
       };
 
-      const showStepsView = () => {
+      const showDeviceView = (name) => {
         els.intro.style.display = "none";
-        els.steps.style.display = "";
+        hideAllPanes();
+        DEVICES[name].pane.style.display = "";
         els.choiceFooter.style.display = "none";
         els.doneFooter.style.display = "";
       };
@@ -3135,12 +3197,16 @@
       };
 
       const init = () => {
-        els.now.addEventListener("click", () => {
-          // Assume anyone clicking Install Now actually follows through --
-          // same effect as Never, so it doesn't keep nagging afterward.
-          localStorage.setItem(KEY, "never");
-          showStepsView();
+        Object.entries(DEVICES).forEach(([name, d]) => {
+          d.button.addEventListener("click", () => {
+            // Getting as far as picking a device means they've engaged with
+            // setup, so stop opening this on every visit from here on.
+            localStorage.setItem(KEY, "never");
+            showDeviceView(name);
+          });
         });
+
+        els.back.addEventListener("click", showIntroView);
         els.later.addEventListener("click", close);
         els.never.addEventListener("click", () => {
           localStorage.setItem(KEY, "never");
